@@ -313,3 +313,25 @@ textarea.form-control {
     .dashboard-grid, .action-grid { grid-template-columns: 1fr; }
     .navbar { flex-direction: column; gap: 1rem; }
 }
+/* Additional fixes */
+.logout-form {
+    display: inline;
+}
+.navbar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+}
+@media (max-width: 640px) {
+    .nav-links {
+        width: 100%;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    .logout-item {
+        width: 100%;
+        text-align: center;
+        margin-top: 0.5rem;
+    }
+}

@@ -20,12 +20,16 @@ This project is a role-based (Admin, Doctor, Patient) hospital appointment manag
    *Note:* Ensure you run this directly via the MySQL command line, phpMyAdmin, or another client.
    
 2. **Configuration:**
+   Ensure `config/db.php` is properly pointing to the database by setting environment variables in XAMPP.
+   For Linux XAMPP, edit /opt/lampp/etc/httpd.conf or create a wrapper script to export `DB_USER` and `DB_PASS` before starting Apache:
+   ```bash
+   export DB_USER=hospital_app
+   export DB_PASS=StrongPassword123!
+   /opt/lampp/lampp start
+   ```
+   Using an .env file or SetEnv in Apache config is also supported.
    Ensure `config/db.php` is properly pointing to the newly created database with the least-privilege credentials:
    ```php
-   $host = "localhost";
-   $dbname = "hospital_db";
-   $username = "hospital_app";
-   $password = "StrongPassword123!";
    ```
 
 3. **Start the Application:**

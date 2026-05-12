@@ -10,27 +10,18 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
     verify_csrf_token($_POST["csrf_token"] ?? '');
     $patient_id = (int)$_POST['patient_id'];
     
-    $check = $conn->prepare("SELECT COUNT(*) as cnt FROM appointments WHERE patient_id = :pid AND status IN ('pending', 'approved')");
-    $check->execute([":pid" => $patient_id]);
-    $active = $check->fetch()['cnt'];
+    $check_role = $conn->prepare("SELECT role, is_active FROM users WHERE id = :id");
+    $check_role->execute([":id" => $patient_id]);
+    $user = $check_role->fetch();
     
-    if ($active > 0) {
-        $action_message = "Энэ өвчтөнд {$active} идэвхтэй захиалга байна. Эхлээд тэдгээрийг цуцална уу.";
+    if (!$user || $user['role'] !== 'patient' || $user['is_active'] == 0) {
+        $action_message = "Өвчтөн олдсонгүй эсвэл аль хэдийн устгагдсан байна.";
         $action_type = "alert-error";
     } else {
-        $check_role = $conn->prepare("SELECT role FROM users WHERE id = :id");
-        $check_role->execute([":id" => $patient_id]);
-        $user = $check_role->fetch();
-        
-        if (!$user || $user['role'] !== 'patient') {
-            $action_message = "Өвчтөн олдсонгүй.";
-            $action_type = "alert-error";
-        } else {
-            $del = $conn->prepare("DELETE FROM users WHERE id = :id AND role = 'patient'");
-            $del->execute([":id" => $patient_id]);
-            $action_message = "Өвчтөн амжилттай устгагдлаа.";
-            $action_type = "alert-success";
-        }
+        $del = $conn->prepare("UPDATE users SET is_active = 0, deleted_at = NOW() WHERE id = :id AND role = 'patient'");
+        $del->execute([":id" => $patient_id]);
+        $action_message = "Өвчтөн амжилттай (soft) устгагдлаа.";
+        $action_type = "alert-success";
     }
 }
 
@@ -39,7 +30,7 @@ $stmt = $conn->query("
            COUNT(a.id) as appt_count
     FROM users u
     LEFT JOIN appointments a ON a.patient_id = u.id
-    WHERE u.role = 'patient'
+    WHERE u.role = 'patient' AND u.is_active = 1
     GROUP BY u.id, u.full_name, u.email, u.created_at
     ORDER BY u.created_at DESC
 ");
@@ -51,7 +42,7 @@ $patients = $stmt->fetchAll();
     <h2>Бүртгэлтэй өвчтөнүүд</h2>
     
     <?php if ($action_message): ?>
-        <div class="<?php echo esc($action_type); ?>"><?php echo esc($action_message); ?></div>
+        <div class="<?php echo esc($action_type); ?>" aria-live="polite"><?php echo esc($action_message); ?></div>
     <?php endif; ?>
     
     <div class="table-responsive mt-4">

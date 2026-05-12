@@ -9,8 +9,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id'])) {
     $appointment_id = (int)$_POST['id'];
     $patient_id = $_SESSION["user_id"];
 
+    // Find the appointment AND make sure it belongs to the patient
     $stmt = $conn->prepare("
-        SELECT id, doctor_id, appointment_date, appointment_time, status 
+        SELECT id, doctor_id, slot_id, appointment_date, appointment_time, status 
         FROM appointments 
         WHERE id = :id AND patient_id = :patient_id
     ");
@@ -41,19 +42,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id'])) {
         $update = $conn->prepare("UPDATE appointments SET status = 'cancelled' WHERE id = :id AND patient_id = :patient_id");
         $update->execute([":id" => $appointment_id, ":patient_id" => $patient_id]);
 
-        $free_slot = $conn->prepare("
-            UPDATE doctor_slots SET is_booked = 0 
-            WHERE doctor_id = :did AND slot_date = :date AND slot_time = :time
-        ");
-        $free_slot->execute([
-            ":did" => $appointment['doctor_id'],
-            ":date" => $appointment['appointment_date'],
-            ":time" => $appointment['appointment_time']
-        ]);
+        if ($appointment['slot_id']) {
+            $free_slot = $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :slot_id");
+            $free_slot->execute([":slot_id" => $appointment['slot_id']]);
+        } else {
+            // Fallback for older data
+            $free_slot = $conn->prepare("
+                UPDATE doctor_slots SET is_booked = 0 
+                WHERE doctor_id = :did AND slot_date = :date AND slot_time = :time
+            ");
+            $free_slot->execute([
+                ":did" => $appointment['doctor_id'],
+                ":date" => $appointment['appointment_date'],
+                ":time" => $appointment['appointment_time']
+            ]);
+        }
 
         $conn->commit();
     } catch (PDOException $e) {
-        $conn->rollBack();
+        if ($conn->inTransaction()) {
+            $conn->rollBack();
+        }
         error_log("Cancel appointment error: " . $e->getMessage());
     }
 
