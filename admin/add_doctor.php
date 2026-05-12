@@ -22,26 +22,36 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = "Бүх талбарыг бөглөнө үү!";
     } elseif (strlen($password) < 8) {
         $error = "Нууц үг хамгийн багадаа 8 тэмдэгт байх ёстой.";
+    } elseif (strlen($full_name) > 100 || strlen($email) > 100 || strlen($specialization) > 100 || strlen($phone) > 30) {
+        $error = "Оролтын урт хэтэрсэн байна.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "И-мэйлийн формат буруу байна.";
     } else {
-        try {
-            $conn->beginTransaction();
+        $deptCheck = $conn->prepare("SELECT id FROM departments WHERE id = ?");
+        $deptCheck->execute([$department_id]);
+        if (!$deptCheck->fetch()) {
+            $error = "Сонгосон тасаг олдсонгүй.";
+        } else {
+            try {
+                $conn->beginTransaction();
 
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = $conn->prepare("INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, 'doctor')");
-            $stmt->execute([$full_name, $email, $hashed_password]);
-            
-            $user_id = $conn->lastInsertId();
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $stmt = $conn->prepare("INSERT INTO users (full_name, email, password, role) VALUES (?, ?, ?, 'doctor')");
+                $stmt->execute([$full_name, $email, $hashed_password]);
+                
+                $user_id = $conn->lastInsertId();
 
-            $stmt2 = $conn->prepare("INSERT INTO doctors (user_id, department_id, specialization, phone) VALUES (?, ?, ?, ?)");
-            $stmt2->execute([$user_id, $department_id, $specialization, $phone]);
+                $stmt2 = $conn->prepare("INSERT INTO doctors (user_id, department_id, specialization, phone) VALUES (?, ?, ?, ?)");
+                $stmt2->execute([$user_id, $department_id, $specialization, $phone]);
 
-            $conn->commit();
-            $success = "Эмч амжилттай бүртгэгдлээ!";
-        } catch(PDOException $e) {
-            $conn->rollBack();
-            error_log("Add doctor error: " . $e->getMessage());
-            if ($e->getCode() == 23000) { $error = "Email давхцаж байна."; }
-            else { $error = "Системийн алдаа гарлаа. Дахин оролдоно уу."; }
+                $conn->commit();
+                $success = "Эмч амжилттай бүртгэгдлээ!";
+            } catch(PDOException $e) {
+                $conn->rollBack();
+                error_log("Add doctor error: " . $e->getMessage());
+                if ($e->getCode() == 23000) { $error = "Email давхцаж байна."; }
+                else { $error = "Системийн алдаа гарлаа. Дахин оролдоно уу."; }
+            }
         }
     }
 }

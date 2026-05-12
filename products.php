@@ -2,14 +2,12 @@
 require_once "config/security.php";
 require_once "config/db.php";
 
-$category = $_GET['category'] ?? '';
-
-$safe_category = sanitize_string($category);
+$category = trim($_GET['category'] ?? '');
 
 try {
-    if (!empty($safe_category)) {
+    if (!empty($category)) {
         $stmt = $conn->prepare("SELECT id, name, description, price, category FROM products WHERE category = :cat AND released = 1");
-        $stmt->execute([':cat' => $safe_category]);
+        $stmt->execute([':cat' => $category]);
     } else {
         $stmt = $conn->prepare("SELECT id, name, description, price, category FROM products WHERE released = 1");
         $stmt->execute();

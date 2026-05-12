@@ -22,7 +22,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
         $conn->beginTransaction();
         
         // Fetch to ensure it belongs to the doctor
-        $stmt = $conn->prepare("SELECT appointment_date, appointment_time FROM appointments WHERE id = :id AND doctor_id = :doctor_id FOR UPDATE");
+        $stmt = $conn->prepare("SELECT appointment_date, appointment_time, status FROM appointments WHERE id = :id AND doctor_id = :doctor_id FOR UPDATE");
         $stmt->execute([":id" => $appointment_id, ":doctor_id" => $doctor_id]);
         $app = $stmt->fetch();
         
@@ -30,6 +30,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
             $conn->rollBack();
             header("Location: my_appointments.php");
             exit;
+        }
+
+        if ($app['status'] !== 'pending') {
+            throw new Exception("Зөвхөн хүлээгдэж буй цаг дээр үйлдэл хийх боломжтой.");
         }
 
         if ($action === 'approve') {
