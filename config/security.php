@@ -11,7 +11,7 @@ if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
 header("X-Frame-Options: DENY");
 header("X-Content-Type-Options: nosniff");
 header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval'");
+header("Content-Security-Policy: default-src 'self' 'unsafe-inline'");
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

@@ -7,6 +7,23 @@ echo "===================================\n\n";
 
 $global_fail = false;
 
+try {
+    // 1. Verify the table exists
+    $table_check = $conn->query("SHOW TABLES LIKE 'products'")->rowCount();
+    if ($table_check === 0) {
+        throw new Exception("The 'products' table does not exist!");
+    }
+
+    // 2. Ensure a `released=0` product exists in the DB
+    $release_check = $conn->query("SELECT COUNT(*) FROM products WHERE released = 0")->fetchColumn();
+    if ($release_check == 0) {
+        throw new Exception("No product with 'released=0' found in the database. Tests cannot accurately check data leakage.");
+    }
+} catch (Exception $e) {
+    echo "SETUP FAILED: " . $e->getMessage() . "\n";
+    exit(1);
+}
+
 function test_product_filter($conn, $payload) {
     global $global_fail;
     echo "Testing payload: " . $payload . "\n";
@@ -17,8 +34,15 @@ function test_product_filter($conn, $payload) {
         
         $found_unreleased = false;
         foreach ($results as $row) {
-            if ($row['name'] === 'Secret Unreleased Product') {
+            // we assume any item containing 'Secret' or checked against released=0
+            // but just to be sure we check if any returned item is actually released=0
+            $check_stmt = $conn->prepare("SELECT released FROM products WHERE name = :name");
+            $check_stmt->execute([':name' => $row['name']]);
+            $is_released = $check_stmt->fetchColumn();
+            
+            if ($is_released == 0) {
                 $found_unreleased = true;
+                break;
             }
         }
         
@@ -29,7 +53,8 @@ function test_product_filter($conn, $payload) {
             echo "PASSED: Vulnerability prevented. No unreleased data returned.\n";
         }
     } catch (PDOException $e) {
-        echo "PASSED: Query failed safely (likely due to strict typing), no data leaked.\n";
+        echo "FAILED: PDOException encountered: " . $e->getMessage() . "\n";
+        $global_fail = true;
     }
     echo "-----------------------------------\n";
 }
@@ -53,7 +78,8 @@ try {
         echo "PASSED: Login bypass prevented. User not found.\n";
     }
 } catch (PDOException $e) {
-    echo "PASSED: Query failed safely.\n";
+    echo "FAILED: PDOException encountered: " . $e->getMessage() . "\n";
+    $global_fail = true;
 }
 echo "===================================\n";
 

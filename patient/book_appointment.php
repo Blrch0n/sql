@@ -85,21 +85,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $conn->beginTransaction();
 
                             $slotUpdate = $conn->prepare("
-                                UPDATE doctor_slots SET is_booked = 1 WHERE doctor_id = :doctor_id AND slot_date = :date AND slot_time = :time AND is_booked = 0;
-    -- 
+                                UPDATE doctor_slots 
                                 SET is_booked = 1
-                                WHERE id = ?
-                                  AND doctor_id = ?
-                                  AND slot_date = ?
-                                  AND slot_time = ?
+                                WHERE id = :slot_id
+                                  AND doctor_id = :doctor_id
+                                  AND slot_date = :date
+                                  AND slot_time = :time
                                   AND is_booked = 0
                             ");
 
                             $slotUpdate->execute([
-                                $available_slot["id"],
-                                $doctor_id,
-                                $date,
-                                $time
+                                ":slot_id" => $available_slot["id"],
+                                ":doctor_id" => $doctor_id,
+                                ":date" => $date,
+                                ":time" => $time
                             ]);
 
                             if ($slotUpdate->rowCount() !== 1) {
