@@ -23,7 +23,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             if ($e->getCode() == 23000) {
                 $error = "Энэ нэртэй ангилал аль хэдийн бүртгэлтэй байна.";
             } else {
-                $error = "Алдаа гарлаа: " . $e->getMessage();
+                error_log("Db Error: " . $e->getMessage());
+                $error = "Системийн алдаа гарлаа. Та дахин оролдоно уу.";
             }
         }
     }

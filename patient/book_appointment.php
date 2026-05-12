@@ -84,8 +84,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         try {
                             $conn->beginTransaction();
 
-                            $sql = "INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, reason) 
-                                    VALUES (:patient_id, :doctor_id, :date, :time, :reason)";
+                            $slotUpdate = $conn->prepare("
+                                UPDATE doctor_slots
+                                SET is_booked = 1
+                                WHERE id = ?
+                                  AND doctor_id = ?
+                                  AND slot_date = ?
+                                  AND slot_time = ?
+                                  AND is_booked = 0
+                            ");
+
+                            $slotUpdate->execute([
+                                $available_slot["id"],
+                                $doctor_id,
+                                $date,
+                                $time
+                            ]);
+
+                            if ($slotUpdate->rowCount() !== 1) {
+                                throw new Exception("Энэ цаг аль хэдийн захиалагдсан байна.");
+                            }
+
+                            $sql = "INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, reason, status) 
+                                    VALUES (:patient_id, :doctor_id, :date, :time, :reason, 'pending')";
                             $stmt = $conn->prepare($sql);
                             $stmt->execute([
                                 ":patient_id" => $patient_id, 
@@ -95,16 +116,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                                 ":reason" => $reason
                             ]);
                             
-                            $mark_booked = $conn->prepare("UPDATE doctor_slots SET is_booked = 1 WHERE id = ?");
-                            $mark_booked->execute([$available_slot["id"]]);
-
                             $conn->commit();
                             $message = "Цаг амжилттай захиалагдлаа! Эмч таны хүсэлтийг батлах хүртэл хүлээнэ үү.";
                             $messageType = "alert-success";
-                        } catch (PDOException $e) {
+                        } catch (Exception $e) {
                             $conn->rollBack();
-                            error_log("Book appointment error: " . $e->getMessage());
-                            $message = "Системийн алдаа гарлаа. Дахин оролдоно уу.";
+                            $message = $e->getMessage();
+                            if(strpos($message, "Энэ цаг") === false) {
+                                error_log("Book appointment error: " . $message);
+                                $message = "Системийн алдаа гарлаа. Дахин оролдоно уу.";
+                            }
                             $messageType = "alert-error";
                         }
                     }

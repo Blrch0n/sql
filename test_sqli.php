@@ -5,7 +5,10 @@ require_once "config/db.php";
 echo "Running SQL Injection Test Suite...\n";
 echo "===================================\n\n";
 
+$global_fail = false;
+
 function test_product_filter($conn, $payload) {
+    global $global_fail;
     echo "Testing payload: " . $payload . "\n";
     try {
         $stmt = $conn->prepare("SELECT name FROM products WHERE category = :cat AND released = 1");
@@ -21,6 +24,7 @@ function test_product_filter($conn, $payload) {
         
         if ($found_unreleased) {
             echo "FAILED: Unreleased product exposed via SQLi!\n";
+            $global_fail = true;
         } else {
             echo "PASSED: Vulnerability prevented. No unreleased data returned.\n";
         }
@@ -44,6 +48,7 @@ try {
     
     if ($user) {
         echo "FAILED: User account found with injection payload!\n";
+        $global_fail = true;
     } else {
         echo "PASSED: Login bypass prevented. User not found.\n";
     }
@@ -51,5 +56,12 @@ try {
     echo "PASSED: Query failed safely.\n";
 }
 echo "===================================\n";
-echo "All tests completed successfully.\n";
+
+if ($global_fail) {
+    echo "Some tests FAILED.\n";
+    exit(1);
+} else {
+    echo "All tests completed successfully.\n";
+    exit(0);
+}
 ?>

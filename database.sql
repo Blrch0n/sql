@@ -58,13 +58,7 @@ CREATE TABLE appointments (
     doctor_id INT NOT NULL,
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected', 'cancelled', 'completed') DEFAULT 'pending',,
-('Тест хэрэглэгч', 'user@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient');
-
-INSERT INTO products (name, description, category, price, released) VALUES
-('Test Product 1', 'A released product', 'Gifts', 19.99, 1),
-('Test Product 2', 'Another released product', 'Tech gifts', 49.99, 1),
-('Secret Unreleased Product', 'This should never be seen by users!', 'Gifts', 999.99, 0)
+    status ENUM('pending', 'approved', 'rejected', 'cancelled', 'completed') DEFAULT 'pending',
     reason TEXT,
     rejection_reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -72,6 +66,13 @@ INSERT INTO products (name, description, category, price, released) VALUES
     FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE
 );
+
+-- Seed Data
+
+-- Security Fix: Least-privilege MySQL user
+CREATE USER IF NOT EXISTS 'hospital_app'@'localhost' IDENTIFIED BY 'StrongPassword123!';
+GRANT SELECT, INSERT, UPDATE, DELETE ON hospital_db.* TO 'hospital_app'@'localhost';
+FLUSH PRIVILEGES;
 
 INSERT INTO users (full_name, email, password, role) VALUES 
 ('Админ', 'admin@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');

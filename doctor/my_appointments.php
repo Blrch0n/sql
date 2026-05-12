@@ -18,21 +18,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action'])) {
     $appointment_id = (int)$_POST['appointment_id'];
     $action = $_POST['action'];
     
-    if ($action === 'approve') {
-        $new_status = 'approved';
-    } elseif ($action === 'cancel') {
-        $new_status = 'cancelled';
-    } else {
-        header("Location: my_appointments.php");
-        exit;
+    try {
+        $conn->beginTransaction();
+        
+        // Fetch to ensure it belongs to the doctor
+        $stmt = $conn->prepare("SELECT appointment_date, appointment_time FROM appointments WHERE id = :id AND doctor_id = :doctor_id FOR UPDATE");
+        $stmt->execute([":id" => $appointment_id, ":doctor_id" => $doctor_id]);
+        $app = $stmt->fetch();
+        
+        if (!$app) {
+            $conn->rollBack();
+            header("Location: my_appointments.php");
+            exit;
+        }
+
+        if ($action === 'approve') {
+            $new_status = 'approved';
+            $update = $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id");
+            $update->execute([":status" => $new_status, ":id" => $appointment_id]);
+        } elseif ($action === 'cancel') {
+            $new_status = 'cancelled';
+            $update = $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id");
+            $update->execute([":status" => $new_status, ":id" => $appointment_id]);
+            
+            // Free the slot
+            $free_slot = $conn->prepare("
+                UPDATE doctor_slots 
+                SET is_booked = 0 
+                WHERE doctor_id = :did AND slot_date = :date AND slot_time = :time
+            ");
+            $free_slot->execute([
+                ":did" => $doctor_id,
+                ":date" => $app['appointment_date'],
+                ":time" => $app['appointment_time']
+            ]);
+        } else {
+            $conn->rollBack();
+            header("Location: my_appointments.php");
+            exit;
+        }
+        
+        $conn->commit();
+    } catch (Exception $e) {
+        $conn->rollBack();
+        error_log("Status update error: " . $e->getMessage());
     }
-    
-    $stmt = $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id AND doctor_id = :doctor_id");
-    $stmt->execute([
-        ":status" => $new_status,
-        ":id" => $appointment_id,
-        ":doctor_id" => $doctor_id
-    ]);
     
     header("Location: my_appointments.php");
     exit;
