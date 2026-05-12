@@ -1,9 +1,8 @@
 <?php
-// Note: These credentials are for local XAMPP usage only.
-$host = "localhost";
-$dbname = "hospital_db";
-$username = "hospital_app";
-$password = "StrongPassword123!";
+$host = getenv('DB_HOST') ?: "localhost";
+$dbname = getenv('DB_NAME') ?: "hospital_db";
+$username = getenv('DB_USER') ?: "hospital_app";
+$password = getenv('DB_PASS') ?: "StrongPassword123!";
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);

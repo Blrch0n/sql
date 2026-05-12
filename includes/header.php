@@ -44,7 +44,7 @@ $base_path = $is_sub_dir ? '../' : '';
                 <li><a href="<?php echo $base_path; ?>patient/my_appointments.php">Миний цагууд</a></li>
             <?php endif; ?>
             
-            <li><a href="<?php echo $base_path; ?>logout.php" class="btn-logout">Гарах (<?php echo esc($_SESSION['full_name']); ?>)</a></li>
+            <li><form method="POST" action="<?php echo $base_path; ?>logout.php" style="display:inline;"><input type="hidden" name="csrf_token" value="<?php echo esc(generate_csrf_token()); ?>"><button type="submit" class="btn-logout" style="border:none; cursor:pointer;">Гарах (<?php echo esc($_SESSION['full_name]); ?>)</button></form></li>
         <?php else: ?>
             <li><a href="<?php echo $base_path; ?>login.php">Нэвтрэх</a></li>
             <li><a href="<?php echo $base_path; ?>register.php">Бүртгүүлэх</a></li>

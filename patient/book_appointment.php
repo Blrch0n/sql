@@ -29,193 +29,100 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     } elseif (!preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $time)) {
         $message = "Цагийн формат буруу байна.";
         $messageType = "alert-error";
-    } elseif ($date < date('Y-m-d')) {
-        $message = "Өнгөрсөн огноогоор цаг авах боломжгүй.";
-        $messageType = "alert-error";
-    } elseif ($date == date('Y-m-d') && $time <= date('H:i:s')) {
-        $message = "Өнгөрсөн цагаар захиалга хийх боломжгүй.";
-        $messageType = "alert-error";
-    } elseif ($doctor_id <= 0) {
-        $message = "Эмчээ зөв сонгоно уу.";
+    } elseif (mb_strlen($reason) > 500) {
+        $message = "Шалтгаан хэт урт байна (дээд тал нь 500 тэмдэгт).";
         $messageType = "alert-error";
     } else {
-        $doc_check = $conn->prepare("SELECT id FROM doctors WHERE id = ?");
-        $doc_check->execute([$doctor_id]);
-        if (!$doc_check->fetch()) {
-            $message = "Сонгосон эмч олдсонгүй.";
-            $messageType = "alert-error";
-        } else {
-            if (strlen($time) === 5) $time .= ':00';
+        try {
+            $conn->beginTransaction();
 
-            $dup_check = $conn->prepare("
-                SELECT id FROM appointments 
-                WHERE patient_id = :pid AND doctor_id = :did 
-                AND appointment_date = :date 
-                AND status IN ('pending', 'approved')
+            $slotUpdate = $conn->prepare("
+                UPDATE doctor_slots
+                SET is_booked = 1
+                WHERE doctor_id = :doctor_id
+                  AND slot_date = :date
+                  AND slot_time = :time
+                  AND is_booked = 0
             ");
-            $dup_check->execute([":pid" => $patient_id, ":did" => $doctor_id, ":date" => $date]);
-            
-            if ($dup_check->fetch()) {
-                $message = "Та энэ эмчид энэ өдөр аль хэдийн цаг авсан байна.";
-                $messageType = "alert-error";
-            } else {
-                $slot_check = $conn->prepare("
-                    SELECT id FROM doctor_slots 
-                    WHERE doctor_id = ? AND slot_date = ? AND slot_time = ? AND is_booked = 0
-                ");
-                $slot_check->execute([$doctor_id, $date, $time]);
-                $available_slot = $slot_check->fetch();
+            $slotUpdate->execute([
+                ':doctor_id' => $doctor_id,
+                ':date' => $date,
+                ':time' => $time
+            ]);
 
-                if (!$available_slot) {
-                    $message = "Энэ цаг дээр эмчийн хуваарь байхгүй эсвэл захиалагдсан байна.";
-                    $messageType = "alert-error";
-                } else {
-                    $conflict = $conn->prepare("
-                        SELECT id FROM appointments 
-                        WHERE doctor_id = :did AND appointment_date = :date 
-                        AND appointment_time = :time AND status IN ('pending', 'approved')
-                    ");
-                    $conflict->execute([":did" => $doctor_id, ":date" => $date, ":time" => $time]);
-                    
-                    if ($conflict->fetch()) {
-                        $message = "Энэ цаг аль хэдийн захиалагдсан байна.";
-                        $messageType = "alert-error";
-                    } else {
-                        try {
-                            $conn->beginTransaction();
-
-                            $slotUpdate = $conn->prepare("
-                                UPDATE doctor_slots 
-                                SET is_booked = 1
-                                WHERE id = :slot_id
-                                  AND doctor_id = :doctor_id
-                                  AND slot_date = :date
-                                  AND slot_time = :time
-                                  AND is_booked = 0
-                            ");
-
-                            $slotUpdate->execute([
-                                ":slot_id" => $available_slot["id"],
-                                ":doctor_id" => $doctor_id,
-                                ":date" => $date,
-                                ":time" => $time
-                            ]);
-
-                            if ($slotUpdate->rowCount() !== 1) {
-                                throw new Exception("Энэ цаг аль хэдийн захиалагдсан байна.");
-                            }
-
-                            $sql = "INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, reason, status) 
-                                    VALUES (:patient_id, :doctor_id, :date, :time, :reason, 'pending')";
-                            $stmt = $conn->prepare($sql);
-                            $stmt->execute([
-                                ":patient_id" => $patient_id, 
-                                ":doctor_id" => $doctor_id, 
-                                ":date" => $date, 
-                                ":time" => $time, 
-                                ":reason" => $reason
-                            ]);
-                            
-                            $conn->commit();
-                            $message = "Цаг амжилттай захиалагдлаа! Эмч таны хүсэлтийг батлах хүртэл хүлээнэ үү.";
-                            $messageType = "alert-success";
-                        } catch (Exception $e) {
-                            $conn->rollBack();
-                            $message = $e->getMessage();
-                            if(strpos($message, "Энэ цаг") === false) {
-                                error_log("Book appointment error: " . $message);
-                                $message = "Системийн алдаа гарлаа. Дахин оролдоно уу.";
-                            }
-                            $messageType = "alert-error";
-                        }
-                    }
-                }
+            if ($slotUpdate->rowCount() !== 1) {
+                throw new Exception("Энэ цаг аль хэдийн захиалагдсан байна эсвэл олдсонгүй.");
             }
+
+            $sql = "INSERT INTO appointments (patient_id, doctor_id, appointment_date, appointment_time, reason, status) 
+                    VALUES (:patient_id, :doctor_id, :date, :time, :reason, 'pending')";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute([
+                ":patient_id" => $patient_id, 
+                ":doctor_id" => $doctor_id, 
+                ":date" => $date, 
+                ":time" => $time, 
+                ":reason" => $reason
+            ]);
+            
+            $conn->commit();
+            $message = "Цаг амжилттай захиалагдлаа! Эмч таны хүсэлтийг батлах хүртэл хүлээнэ үү.";
+            $messageType = "alert-success";
+        } catch (Exception $e) {
+            $conn->rollBack();
+            $msg = $e->getMessage();
+            if (strpos($msg, "аль хэдийн захиалагдсан") !== false) {
+                $message = $msg;
+            } else {
+                error_log("Book appointment error: " . $msg);
+                $message = "Системийн алдаа гарлаа. Дахин оролдоно уу.";
+            }
+            $messageType = "alert-error";
         }
     }
 }
 ?>
 
 <?php require_once "../includes/header.php"; ?>
-
-<div class="glass-card mt-4" style="max-width: 600px; margin-left: auto; margin-right: auto;">
-    <h2>Эмчид цаг авах</h2>
+<div class="glass-card page-card" style="max-width: 600px; margin: 2rem auto;">
+    <h2 class="section-title">Цаг захиалах (Бүртгэл)</h2>
     
-    <?php if ($message) echo "<div class='$messageType'>" . esc($message) . "</div>"; ?>
+    <?php if ($message): ?>
+        <div class="<?php echo esc($messageType); ?>"><?php echo esc($message); ?></div>
+        <?php if ($messageType == 'alert-success') $message = ''; ?>
+    <?php endif; ?>
 
     <form method="POST">
         <input type="hidden" name="csrf_token" value="<?php echo esc(generate_csrf_token()); ?>">
         
         <div class="form-group">
-            <label>Эмч сонгох:</label>
+            <label for="doctor_id">Эмч сонгох:</label>
             <select name="doctor_id" id="doctor_id" class="form-control" required>
-                <option value="">-- Сонгох --</option>
-                <?php foreach ($doctors as $doctor): ?>
-                    <option value="<?php echo $doctor['id']; ?>">
-                        <?php echo esc($doctor['full_name'] . " - " . $doctor['department']); ?>
+                <option value="">-- Сонгоно уу --</option>
+                <?php foreach ($doctors as $doc): ?>
+                    <option value="<?php echo $doc['id']; ?>">
+                        <?php echo esc($doc['full_name']) . " (" . esc($doc['department']) . ")"; ?>
                     </option>
                 <?php endforeach; ?>
             </select>
         </div>
 
         <div class="form-group">
-            <label>Огноо:</label>
-            <input type="date" name="appointment_date" id="appointment_date" class="form-control" min="<?php echo date('Y-m-d'); ?>" required>
+            <label for="appointment_date">Огноо:</label>
+            <input type="date" name="appointment_date" id="appointment_date" class="form-control" required min="<?php echo date('Y-m-d'); ?>">
         </div>
 
         <div class="form-group">
-            <label>Цаг (Сонгох боломжтой):</label>
-            <select name="appointment_time" id="appointment_time" class="form-control" required>
-                <option value="">-- Эхлээд эмч болон огноо сонгоно уу --</option>
-            </select>
+            <label for="appointment_time">Цаг:</label>
+            <input type="time" name="appointment_time" id="appointment_time" class="form-control" required>
         </div>
 
         <div class="form-group">
-            <label>Шалтгаан:</label>
-            <textarea name="reason" class="form-control" rows="3" placeholder="Ямар зовиуртай байгаагаа бичнэ үү..."></textarea>
+            <label for="reason">Шалтгаан (заавал биш):</label>
+            <textarea name="reason" id="reason" class="form-control" rows="3" maxlength="500"></textarea>
         </div>
 
-        <button type="submit" class="btn btn-primary mt-4">Цаг авах</button>
+        <button type="submit" class="btn btn-primary">Захиалах</button>
     </form>
 </div>
-
 <?php require_once "../includes/footer.php"; ?>
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    const doctorSelect = document.getElementById("doctor_id");
-    const dateInput = document.getElementById("appointment_date");
-    const timeSelect = document.getElementById("appointment_time");
-
-    function fetchAvailableTimes() {
-        const doctorId = doctorSelect.value;
-        const date = dateInput.value;
-
-        if (doctorId && date) {
-            fetch("get_slots.php?doctor_id=" + doctorId + "&date=" + date)
-                .then(response => response.json())
-                .then(slots => {
-                    timeSelect.innerHTML = '<option value="">-- Цаг сонгох --</option>';
-                    if (slots.length > 0) {
-                        slots.forEach(slot => {
-                            const option = document.createElement("option");
-                            option.value = slot;
-                            option.textContent = slot;
-                            timeSelect.appendChild(option);
-                        });
-                    } else {
-                        timeSelect.innerHTML = '<option value="">-- Сонгосон өдөр хуваарь алга --</option>';
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching slots:", error);
-                    timeSelect.innerHTML = '<option value="">-- Алдаа гарлаа --</option>';
-                });
-        } else {
-            timeSelect.innerHTML = '<option value="">-- Эхлээд эмч болон огноо сонгоно уу --</option>';
-        }
-    }
-
-    doctorSelect.addEventListener("change", fetchAvailableTimes);
-    dateInput.addEventListener("change", fetchAvailableTimes);
-});
-</script>
