@@ -18,8 +18,67 @@ try {
 
 <?php require_once "../includes/header.php"; ?>
 
-<h2 style="text-align: left; margin-bottom: 0.5rem;">Сайн байна уу, <?php echo esc($_SESSION["full_name"]); ?>!</h2>
-<p class="text-muted mb-4">Админы самбар</p>
+<div class="dashboard-header">
+    <h1>Сайн байна уу, <?php echo esc($_SESSION["full_name"]); ?>!</h1>
+    <p>Эмнэлгийн системийн ерөнхий хяналтын самбар</p>
+</div>
+
+<div class="dashboard-grid">
+    <div class="stat-card">
+        <h3>Нийт өвчтөн</h3>
+        <p class="value"><?php echo $total_users; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Нийт эмч</h3>
+        <p class="value"><?php echo $total_doctors; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Нийт захиалга</h3>
+        <p class="value"><?php echo $total_appointments; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Хүлээгдэж буй</h3>
+        <p class="value"><?php echo $pending_appointments; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Баталгаажсан</h3>
+        <p class="value"><?php echo $approved_appointments; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Дууссан</h3>
+        <p class="value"><?php echo $completed_appointments; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Өнөөдрийн цагууд</h3>
+        <p class="value"><?php echo $today_appointments; ?></p>
+    </div>
+    <div class="stat-card">
+        <h3>Нийт тасаг</h3>
+        <p class="value"><?php echo $total_departments; ?></p>
+    </div>
+</div>
+
+<section class="quick-actions">
+    <h2>Шуурхай үйлдлүүд</h2>
+    <div class="action-grid">
+        <a class="action-card" href="add_department.php">
+            <span class="icon">🏥</span>
+            <span class="title">Тасаг нэмэх</span>
+        </a>
+        <a class="action-card" href="add_doctor.php">
+            <span class="icon">➕</span>
+            <span class="title">Эмч нэмэх</span>
+        </a>
+        <a class="action-card" href="add_category.php">
+            <span class="icon">📂</span>
+            <span class="title">Ангилал нэмэх</span>
+        </a>
+        <a class="action-card" href="manage_users.php">
+            <span class="icon">👥</span>
+            <span class="title">Хэрэглэгчид</span>
+        </a>
+    </div>
+</section>
 
 <?php
 try {
@@ -84,75 +143,6 @@ $ui_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
         <?php endforeach; ?>
         </ul>
     <?php endif; ?>
-</div>
-
-<div style="margin-bottom: 2rem; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-    <h3>Үзүүлэлтүүд (Statistics)</h3>
-    <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
-        <thead>
-            <tr style="border-bottom: 2px solid #ddd; background: #f8fafc;">
-                <th style="padding: 10px;">Дэлгэрэнгүй</th>
-                <th style="padding: 10px;">Тоо хэмжээ</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Нийт өвчтөн</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $total_users; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Нийт эмч</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $total_doctors; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Нийт захиалга</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $total_appointments; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Хүлээгдэж буй</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $pending_appointments; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Баталгаажсан</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $approved_appointments; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Дууссан</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $completed_appointments; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Өнөөдрийн цагууд</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $today_appointments; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Нийт тасаг</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $total_departments; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Нийт ангилал</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $total_categories; ?></td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<div class="dashboard-grid">
-    <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='add_category.php'">
-        <h3>Ангилал нэмэх</h3>
-        <p class="value">📂</p>
-    </div>
-    <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='add_department.php'">
-        <h3>Тасаг нэмэх</h3>
-        <p class="value">🏥</p>
-    </div>
-    <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='add_doctor.php'">
-        <h3>Эмч нэмэх</h3>
-        <p class="value">+</p>
-    </div>
-    <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='manage_users.php'">
-        <h3>Хэрэглэгчид</h3>
-        <p class="value">👥</p>
-    </div>
 </div>
 
 <?php require_once "../includes/footer.php"; ?>

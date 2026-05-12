@@ -105,9 +105,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Layout */
 .container {
-    max-width: 1200px;
-    margin: 3rem auto;
-    padding: 0 1rem;
+    max-width: 1180px;
+    margin: 2rem auto;
+    padding: 0 1.5rem;
     flex-grow: 1;
     width: 100%;
 }
@@ -376,54 +376,159 @@ a.text-primary:hover { text-decoration: underline; }
     border-color: var(--primary);
 }
 
-/* Grid Dashboard */
-.dashboard-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 2.5rem;
-    margin-top: 2rem;
+/* ===== Improved Admin Dashboard Layout ===== */
+.dashboard-header {
+    margin-bottom: 1.5rem;
+}
+.dashboard-header h1 {
+    font-size: clamp(1.8rem, 3vw, 2.6rem);
+    line-height: 1.1;
+    margin-bottom: 0.4rem;
+    letter-spacing: -1px;
+}
+.dashboard-header p {
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight: 700;
 }
 
+/* Statistics grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 1rem;
+    margin-top: 1.2rem;
+}
+
+/* Compact KPI card */
 .stat-card {
     background: #fff;
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.5rem;
-    text-align: center;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 8px 8px 0px #818cf8;
+    border: 2px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1rem;
+    min-height: 118px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow: 4px 4px 0px #818cf8;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .stat-card:nth-child(2n) {
-    box-shadow: 8px 8px 0px var(--secondary);
+    box-shadow: 4px 4px 0px var(--secondary);
 }
 .stat-card:nth-child(3n) {
-    box-shadow: 8px 8px 0px #10b981;
+    box-shadow: 4px 4px 0px #10b981;
 }
 .stat-card:nth-child(4n) {
-    box-shadow: 8px 8px 0px #f43f5e;
+    box-shadow: 4px 4px 0px #f43f5e;
 }
 
 .stat-card:hover {
-    transform: translate(-4px, -4px);
-    box-shadow: 12px 12px 0px var(--border-color) !important;
-}
-
-.stat-card:active {
-    transform: translate(2px, 2px);
+    transform: translate(-2px, -2px);
     box-shadow: 6px 6px 0px var(--border-color) !important;
 }
 
 .stat-card h3 {
-    font-size: 1.1rem;
-    color: var(--text-main);
-    margin-bottom: 1.5rem;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    margin-bottom: 0.75rem;
+    color: #374151;
+    letter-spacing: 0;
+    text-transform: none; /* Remove brutalist uppercase */
+    font-weight: 800;
 }
 .stat-card .value {
-    font-size: 2.5rem;
+    font-size: 2rem;
+    line-height: 1;
     font-weight: 900;
     color: var(--text-main);
-    text-shadow: 3px 3px 0px var(--secondary);
+    text-shadow: 2px 2px 0px var(--secondary);
+}
+
+/* Separate action cards */
+.quick-actions {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+}
+.quick-actions h2 {
+    font-size: 1.4rem;
+    text-align: left;
+    margin-bottom: 1rem;
+    text-transform: none;
+}
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1rem;
+}
+.action-card {
+    background: #fff;
+    border: 2px solid var(--border-color);
+    border-radius: 14px;
+    padding: 1rem;
+    min-height: 92px;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    text-decoration: none;
+    color: var(--text-main);
+    box-shadow: 4px 4px 0px var(--border-color);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.action-card:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--border-color);
+}
+.action-card .icon {
+    font-size: 1.6rem;
+}
+.action-card .title {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
+    font-size: 0.95rem;
+}
+
+/* Navbar smaller override */
+.navbar {
+    padding: 0.85rem 1.5rem;
+}
+.navbar-brand a {
+    font-size: 1.45rem;
+    text-shadow: 2px 2px 0px var(--border-color);
+}
+.nav-links {
+    gap: 1rem;
+}
+.nav-links a {
+    font-size: 0.95rem;
+}
+
+/* Responsive Overrides */
+@media (max-width: 1100px) {
+    .dashboard-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .action-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+@media (max-width: 640px) {
+    .container {
+        margin: 1rem auto;
+        padding: 0 1rem;
+    }
+    .dashboard-grid,
+    .action-grid {
+        grid-template-columns: 1fr;
+    }
+    .stat-card {
+        min-height: 96px;
+    }
+    .stat-card .value {
+        font-size: 1.8rem;
+    }
 }
 
 /* Footer */

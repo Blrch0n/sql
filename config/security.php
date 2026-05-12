@@ -3,6 +3,10 @@ ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_samesite', 'Strict');
 
+// ТАЙЛБАР: Production буюу жинхэнэ серверт (HTTPS) байршуулах үед доорх тохиргоог нэмнэ.
+// Бие даалт нь Localhost (HTTP) дээр ажиллаж байгаа тул алдаа гарахаас сэргийлж хаалаа (commented).
+// ini_set('session.cookie_secure', 1);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
