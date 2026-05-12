@@ -10,17 +10,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST["password"];
 
     if (!empty($full_name) && !empty($email) && !empty($password)) {
-        if (strlen($full_name) > 100 || strlen($email) > 100) {
-            $error = "Оролтын урт хэтэрсэн байна.";
-        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $error = "Имэйл хаягийн формат буруу байна.";
-        } elseif (!preg_match('/^(?=.*\d)(?=.*[a-zA-Z])(?=.*[\W_]).{8,}$/', $password)) {
-            $error = "Нууц үг хамгийн багадаа 8 тэмдэгт, 1 тоо, 1 үсэг болон 1 тусгай тэмдэгт (Жишээ нь: @$!%*?&) агуулсан байх ёстой.";
+        if (!validate_name($full_name) || strlen($full_name) > 100) {
+            $error = "Бүртгэл амжилтгүй. Оруулсан мэдээллээ шалгана уу.";
+        } elseif (!validate_email($email) || strlen($email) > 100) {
+            $error = "Бүртгэл амжилтгүй. Оруулсан мэдээллээ шалгана уу.";
+        } elseif (!validate_password($password)) {
+            $error = "Бүртгэл амжилтгүй. Оруулсан мэдээллээ шалгана уу.";
         } else {
             $stmt = $conn->prepare("SELECT id FROM users WHERE email = :email LIMIT 1");
             $stmt->execute([":email" => $email]);
             if ($stmt->fetch()) {
-                $error = "Энэ имэйл хаяг бүртгэлтэй байна.";
+                $error = "Бүртгэл амжилтгүй. Оруулсан мэдээллээ шалгана уу.";
             } else {
                 $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 

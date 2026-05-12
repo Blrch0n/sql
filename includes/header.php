@@ -10,7 +10,11 @@ $base_path = $is_sub_dir ? '../' : '';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MediCare System</title>
-    <link rel="stylesheet" href="<?php echo $base_path; ?>assets/css/style.css">
+    <?php
+    $css_file = __DIR__ . "/../assets/css/style.css";
+    $css_version = file_exists($css_file) ? filemtime($css_file) : time();
+    ?>
+    <link rel="stylesheet" href="<?php echo $base_path; ?>assets/css/style.css?v=<?php echo $css_version; ?>">
 </head>
 <body>
 

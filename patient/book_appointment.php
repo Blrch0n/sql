@@ -85,7 +85,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             $conn->beginTransaction();
 
                             $slotUpdate = $conn->prepare("
-                                UPDATE doctor_slots
+                                UPDATE doctor_slots SET is_booked = 1 WHERE doctor_id = :doctor_id AND slot_date = :date AND slot_time = :time AND is_booked = 0;
+    -- 
                                 SET is_booked = 1
                                 WHERE id = ?
                                   AND doctor_id = ?

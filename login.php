@@ -25,6 +25,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $error = $rate_error;
     } else {
         $email = trim($_POST["email"]);
+        $email = filter_var($email, FILTER_VALIDATE_EMAIL);
         $password = $_POST["password"];
 
         if (empty($email) || empty($password)) {

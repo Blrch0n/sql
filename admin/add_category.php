@@ -8,21 +8,23 @@ $error = "";
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     verify_csrf_token($_POST["csrf_token"] ?? '');
-    $category_name = sanitize_string($_POST["category_name"] ?? '');
+    $category_name = clean_input($_POST["category_name"] ?? '');
 
-    if (empty($category_name)) {
+    if (!validate_required($category_name)) {
         $error = "Ангиллын нэрийг оруулна уу!";
-    } elseif (strlen($category_name) > 100) {
+    } elseif (mb_strlen($category_name) > 100) {
         $error = "Ангиллын нэр 100 тэмдэгтээс хэтрэхгүй байх ёстой.";
     } else {
-        try {
-            $stmt = $conn->prepare("INSERT INTO categories (name) VALUES (?)");
-            $stmt->execute([$category_name]);
-            $success = "Ангилал амжилттай нэмэгдлээ!";
-        } catch(PDOException $e) {
-            if ($e->getCode() == 23000) {
-                $error = "Энэ нэртэй ангилал аль хэдийн бүртгэлтэй байна.";
-            } else {
+        $check = $conn->prepare("SELECT id FROM categories WHERE name = ?");
+        $check->execute([$category_name]);
+        if ($check->fetch()) {
+            $error = "Энэ нэртэй ангилал аль хэдийн бүртгэлтэй байна.";
+        } else {
+            try {
+                $stmt = $conn->prepare("INSERT INTO categories (name) VALUES (?)");
+                $stmt->execute([$category_name]);
+                $success = "Ангилал амжилттай нэмэгдлээ!";
+            } catch(PDOException $e) {
                 error_log("Db Error: " . $e->getMessage());
                 $error = "Системийн алдаа гарлаа. Та дахин оролдоно уу.";
             }
@@ -57,19 +59,34 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </form>
     
     <h3 style="margin-top: 30px;">Сүүлд нэмэгдсэн ангиллууд:</h3>
-    <ul>
-        <?php
-        try {
-            $cats = $conn->query("SELECT * FROM categories ORDER BY id DESC LIMIT 5");
-            while ($cat = $cats->fetch()) {
-                $safeUrl = "view_category.php?name=" . urlencode($cat['name']);
-                echo "<li><a href='{$safeUrl}'>" . esc($cat['name']) . "</a></li>";
+    <table class="table mt-3">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Нэр</th>
+            </tr>
+        </thead>
+        <tbody>
+            <?php
+            try {
+                $cats = $conn->query("SELECT * FROM categories ORDER BY id DESC LIMIT 5");
+                if ($cats->rowCount() > 0) {
+                    while ($cat = $cats->fetch()) {
+                        $safeUrl = "view_category.php?name=" . urlencode($cat['name']);
+                        echo "<tr>";
+                        echo "<td>" . esc($cat['id']) . "</td>";
+                        echo "<td><a href='" . esc($safeUrl) . "'>" . esc($cat['name']) . "</a></td>";
+                        echo "</tr>";
+                    }
+                } else {
+                    echo "<tr><td colspan='2'>Одоогоор ангилал байхгүй байна.</td></tr>";
+                }
+            } catch (Exception $e) {
+                echo "<tr><td colspan='2'>Хүснэгт үүсээгүй байна.</td></tr>";
             }
-        } catch (Exception $e) {
-            echo "Хүснэгт үүсээгүй байна.";
-        }
-        ?>
-    </ul>
+            ?>
+        </tbody>
+    </table>
 </div>
 
 <?php require_once "../includes/footer.php"; ?>

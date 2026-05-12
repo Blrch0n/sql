@@ -2,10 +2,16 @@
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 ini_set('session.cookie_samesite', 'Strict');
+ini_set('session.use_strict_mode', 1);
 
-// ТАЙЛБАР: Production буюу жинхэнэ серверт (HTTPS) байршуулах үед доорх тохиргоог нэмнэ.
-// Бие даалт нь Localhost (HTTP) дээр ажиллаж байгаа тул алдаа гарахаас сэргийлж хаалаа (commented).
-// ini_set('session.cookie_secure', 1);
+if (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    ini_set('session.cookie_secure', 1);
+}
+
+header("X-Frame-Options: DENY");
+header("X-Content-Type-Options: nosniff");
+header("Referrer-Policy: strict-origin-when-cross-origin");
+header("Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval'");
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -76,7 +82,7 @@ function verify_csrf_token($token) {
  * Require authentication with a specific role.
  * Redirects to login if not authenticated or wrong role.
  * 
- * @param string $role  The required role ('admin', 'doctor', 'patient')
+ * @param string|array $role  The required role ('admin', 'doctor', 'patient')
  */
 function require_auth($role) {
     $is_sub_dir = (basename(dirname($_SERVER['PHP_SELF'])) == 'admin' 
@@ -84,7 +90,11 @@ function require_auth($role) {
                 || basename(dirname($_SERVER['PHP_SELF'])) == 'patient');
     $base_path = $is_sub_dir ? '../' : '';
 
-    if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== $role) {
+    $roles = is_array($role) ? $role : [$role];
+
+    if (!isset($_SESSION['user_id']) || empty($_SESSION['role']) || !in_array($_SESSION['role'], $roles, true)) {
+        session_unset();
+        session_destroy();
         header("Location: {$base_path}login.php");
         exit;
     }
@@ -144,6 +154,30 @@ function validate_date($date) {
 
 function validate_time($time) {
     return preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $time);
+}
+
+function validate_name($name) {
+    return preg_match('/^[\p{L}\s\.\-]+$/u', $name);
+}
+
+function validate_phone($phone) {
+    return preg_match('/^\+?[0-9]{8,15}$/', $phone);
+}
+
+function normalize_time($time) {
+    if (preg_match('/^(\d{2}:\d{2})/', $time, $matches)) {
+        return $matches[1];
+    }
+    return $time;
+}
+
+function is_future_datetime($date, $time = '00:00') {
+    try {
+        $dt = new DateTime("$date $time");
+        return $dt > new DateTime();
+    } catch (Exception $e) {
+        return false;
+    }
 }
 
 function e($value) {

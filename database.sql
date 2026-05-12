@@ -74,5 +74,39 @@ CREATE USER IF NOT EXISTS 'hospital_app'@'localhost' IDENTIFIED BY 'StrongPasswo
 GRANT SELECT, INSERT, UPDATE, DELETE ON hospital_db.* TO 'hospital_app'@'localhost';
 FLUSH PRIVILEGES;
 
+-- Indexes
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_doctors_ids ON doctors(user_id, department_id);
+CREATE INDEX idx_doctor_slots_datetime ON doctor_slots(doctor_id, slot_date, slot_time);
+CREATE INDEX idx_appointments_lookup ON appointments(patient_id, doctor_id, appointment_date, appointment_time);
+
 INSERT INTO users (full_name, email, password, role) VALUES 
-('Админ', 'admin@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+('Админ', 'admin@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin'),
+('Жаргал', 'patient@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient'),
+('Бат Эмч', 'doctor@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'doctor');
+
+INSERT INTO departments (name) VALUES 
+('Дотрын тасаг'),
+('Мэс заслын тасаг'),
+('Шүдний тасаг');
+
+INSERT INTO categories (name) VALUES 
+('Туршилт'),
+('Шинжилгээ'),
+('Эмчилгээ');
+
+INSERT INTO products (name, description, category, price, released) VALUES 
+('Бүтээгдэхүүн 1', 'Тайлбар 1', 'Туршилт', 15000.00, 1),
+('Бүтээгдэхүүн 2', 'Тайлбар 2', 'Шинжилгээ', 20000.00, 1),
+('Бүтээгдэхүүн 3', 'Тайлбар 3', 'Эмчилгээ', 5000.00, 1),
+('Нууц Бүтээгдэхүүн', 'Харагдахгүй тайлбар', 'Туршилт', 100000.00, 0);
+
+INSERT INTO doctors (user_id, department_id, specialization, phone) VALUES 
+(3, 1, 'Дотрын эмч', '99112233');
+
+INSERT INTO doctor_slots (doctor_id, slot_date, slot_time, is_booked) VALUES 
+(1, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '09:00:00', 0),
+(1, DATE_ADD(CURDATE(), INTERVAL 1 DAY), '10:00:00', 0),
+(1, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '11:00:00', 0),
+(1, DATE_ADD(CURDATE(), INTERVAL 2 DAY), '14:00:00', 0),
+(1, DATE_ADD(CURDATE(), INTERVAL 3 DAY), '15:00:00', 0);

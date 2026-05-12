@@ -64,3 +64,21 @@ You can run the built-in vulnerability test suite to ensure SQL injection protec
 php test_sqli.php
 ```
 It returns an exit code of `0` on success and `1` on failure, allowing integration with CI/CD runners if required.
+
+### Database Setup
+To cleanly import the demo database with the correct seeding:
+```bash
+sudo /opt/lampp/bin/mysql -u root < database.sql
+```
+
+Default Accounts:
+- admin@medicare.mn (password: password)
+- doctor@medicare.mn (password: password)
+- patient@medicare.mn (password: password)
+
+### Troubleshooting
+Make sure you use XAMPP's PHP for running tests:
+```bash
+/opt/lampp/bin/php test_sqli.php
+```
+If you experience UI issues, force refresh your browser (Ctrl+F5) to break the CSS cache.
