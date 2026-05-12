@@ -93,4 +93,71 @@ function require_auth($role) {
 function esc($string) {
     return htmlspecialchars($string ?? '', ENT_QUOTES, 'UTF-8');
 }
-?>
+
+/**
+ * Sanitize strings specifically for URL params and safe rendering
+ */
+function sanitize_string($data) {
+    return htmlspecialchars(strip_tags(trim($data)), ENT_QUOTES, 'UTF-8');
+}
+
+/**
+ * Ensure an ID is a strict integer, useful for $_GET parameters
+ */
+function sanitize_id($id) {
+    return filter_var($id, FILTER_VALIDATE_INT) !== false ? (int)$id : 0;
+}
+
+function clean_input($data) {
+    $data = trim($data);
+    $data = stripslashes($data);
+    return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
+}
+
+function validate_required($value) {
+    return !empty(trim($value));
+}
+
+function validate_email($email) {
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
+}
+
+function validate_username($username) {
+    return preg_match('/^[a-zA-Z0-9_]{3,20}$/', $username);
+}
+
+function validate_password($password) {
+    return preg_match('/^(?=.*\d)(?=.*[a-zA-Z])(?=.*[\W_]).{8,}$/', $password);
+}
+
+function validate_integer_id($id) {
+    return filter_var($id, FILTER_VALIDATE_INT) !== false && $id > 0;
+}
+
+function validate_date($date) {
+    return preg_match('/^\d{4}-\d{2}-\d{2}$/', $date);
+}
+
+function validate_time($time) {
+    return preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $time);
+}
+
+function e($value) {
+    return htmlspecialchars($value ?? '', ENT_QUOTES, 'UTF-8');
+}
+
+function redirect_if_not_logged_in() {
+    $is_sub_dir = (basename(dirname($_SERVER['PHP_SELF'])) == 'admin' 
+                || basename(dirname($_SERVER['PHP_SELF'])) == 'doctor' 
+                || basename(dirname($_SERVER['PHP_SELF'])) == 'patient');
+    $base_path = $is_sub_dir ? '../' : '';
+
+    if (!isset($_SESSION['user_id'])) {
+        header("Location: {$base_path}login.php");
+        exit;
+    }
+}
+
+function require_role($role) {
+    require_auth($role); 
+}

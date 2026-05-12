@@ -15,6 +15,22 @@ CREATE TABLE departments (
     name VARCHAR(100) NOT NULL UNIQUE
 );
 
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    category VARCHAR(100) NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    released TINYINT(1) DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE doctors (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -42,7 +58,13 @@ CREATE TABLE appointments (
     doctor_id INT NOT NULL,
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
-    status ENUM('pending', 'approved', 'rejected', 'cancelled', 'completed') DEFAULT 'pending',
+    status ENUM('pending', 'approved', 'rejected', 'cancelled', 'completed') DEFAULT 'pending',,
+('Тест хэрэглэгч', 'user@medicare.mn', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'patient');
+
+INSERT INTO products (name, description, category, price, released) VALUES
+('Test Product 1', 'A released product', 'Gifts', 19.99, 1),
+('Test Product 2', 'Another released product', 'Tech gifts', 49.99, 1),
+('Secret Unreleased Product', 'This should never be seen by users!', 'Gifts', 999.99, 0)
     reason TEXT,
     rejection_reason TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

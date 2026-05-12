@@ -379,16 +379,16 @@ a.text-primary:hover { text-decoration: underline; }
 /* Grid Dashboard */
 .dashboard-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 2.5rem;
-    margin-top: 3rem;
+    margin-top: 2rem;
 }
 
 .stat-card {
     background: #fff;
     border: var(--border-width) solid var(--border-color);
     border-radius: 16px;
-    padding: 2.5rem;
+    padding: 1.5rem;
     text-align: center;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     box-shadow: 8px 8px 0px #818cf8;
@@ -415,12 +415,12 @@ a.text-primary:hover { text-decoration: underline; }
 }
 
 .stat-card h3 {
-    font-size: 1.5rem;
+    font-size: 1.1rem;
     color: var(--text-main);
     margin-bottom: 1.5rem;
 }
 .stat-card .value {
-    font-size: 3.5rem;
+    font-size: 2.5rem;
     font-weight: 900;
     color: var(--text-main);
     text-shadow: 3px 3px 0px var(--secondary);
