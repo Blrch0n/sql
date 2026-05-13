@@ -1,6 +1,7 @@
 <?php
 require_once "../config/security.php";
 require_once "../config/db.php";
+require_once "../includes/notifications.php";
 require_auth('doctor');
 
 $stmt = $conn->prepare("SELECT id FROM doctors WHERE user_id = :uid LIMIT 1");
@@ -23,10 +24,10 @@ if (isset($_SESSION['flash_message'])) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     verify_csrf_token($_POST["csrf_token"] ?? '');
-    
+
     $appointment_id = (int)$_POST["appointment_id"];
     $status = $_POST["status"];
-    
+
     $valid_transitions = [
         'pending'   => ['approved', 'cancelled'],
         'approved'  => ['completed', 'cancelled'],
@@ -34,32 +35,62 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         'cancelled' => [],
     ];
 
-    $cur_stmt = $conn->prepare("SELECT status FROM appointments WHERE id = :id AND doctor_id = :did");
-    $cur_stmt->execute([':id' => $appointment_id, ':did' => $doctor_id]);
-    $current = $cur_stmt->fetchColumn();
-
-    if ($current && isset($valid_transitions[$current]) && in_array($status, $valid_transitions[$current])) {
+    try {
         $conn->beginTransaction();
 
-        if ($status === 'cancelled') {
-            $slot_row = $conn->prepare("SELECT slot_id FROM appointments WHERE id = :id");
-            $slot_row->execute([':id' => $appointment_id]);
-            $slot_id = $slot_row->fetchColumn();
-            if ($slot_id) {
+        // Fetch current status inside transaction with row lock to prevent TOCTOU
+        $cur_stmt = $conn->prepare("SELECT status, slot_id FROM appointments WHERE id = :id AND doctor_id = :did FOR UPDATE");
+        $cur_stmt->execute([':id' => $appointment_id, ':did' => $doctor_id]);
+        $current_row = $cur_stmt->fetch();
+        $current = $current_row ? $current_row['status'] : null;
+
+        if ($current && isset($valid_transitions[$current]) && in_array($status, $valid_transitions[$current])) {
+            if ($status === 'cancelled' && $current_row['slot_id']) {
                 $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :sid")
-                     ->execute([':sid' => $slot_id]);
+                     ->execute([':sid' => $current_row['slot_id']]);
             }
+
+            // Fetch patient_id and appointment date for notification
+            $appt_info = $conn->prepare("SELECT patient_id, appointment_date, appointment_time FROM appointments WHERE id = :id");
+            $appt_info->execute([':id' => $appointment_id]);
+            $appt_data = $appt_info->fetch();
+
+            $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id AND doctor_id = :did")
+                 ->execute([":status" => $status, ":id" => $appointment_id, ":did" => $doctor_id]);
+
+            // Notify patient about status change
+            if ($appt_data) {
+                $appt_date = date('Y-m-d', strtotime($appt_data['appointment_date']));
+                $appt_time = date('H:i', strtotime($appt_data['appointment_time']));
+                $titles = [
+                    'approved'  => 'Цаг баталгаажлаа',
+                    'cancelled' => 'Цаг цуцлагдлаа',
+                    'completed' => 'Үзлэг дууслаа',
+                ];
+                $msgs = [
+                    'approved'  => "$appt_date $appt_time цагийн захиалга эмчид баталгаажлаа.",
+                    'cancelled' => "$appt_date $appt_time цагийн захиалгыг эмч цуцлав.",
+                    'completed' => "$appt_date $appt_time цагийн үзлэг дууссан гэж тэмдэглэгдлээ.",
+                ];
+                if (isset($titles[$status])) {
+                    create_notification($conn, $appt_data['patient_id'], $titles[$status], $msgs[$status]);
+                }
+            }
+
+            $conn->commit();
+            $_SESSION['flash_message'] = "Цаг $status төлөвт шилжлээ!";
+            $_SESSION['flash_type'] = "alert-success";
+        } else {
+            $conn->rollBack();
         }
-
-        $stmt = $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id AND doctor_id = :doctor_id");
-        $stmt->execute([":status" => $status, ":id" => $appointment_id, ":doctor_id" => $doctor_id]);
-
-        $conn->commit();
-        $_SESSION['flash_message'] = "Цаг $status төлөвт шилжлээ!";
-        $_SESSION['flash_type'] = "alert-success";
-        header("Location: my_appointments.php");
-        exit();
+    } catch (Exception $e) {
+        $conn->rollBack();
+        $_SESSION['flash_message'] = "Алдаа гарлаа: " . $e->getMessage();
+        $_SESSION['flash_type'] = "alert-error";
     }
+
+    header("Location: my_appointments.php");
+    exit();
 }
 
 $appointments = $conn->prepare("

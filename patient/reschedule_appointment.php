@@ -1,6 +1,7 @@
 <?php
 require_once "../config/security.php";
 require_once "../config/db.php";
+require_once "../includes/notifications.php";
 require_auth('patient');
 
 $patient_id = $_SESSION["user_id"];
@@ -34,58 +35,86 @@ if (!$is_future || !in_array($appt['status'], ['pending', 'approved'])) {
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     verify_csrf_token($_POST['csrf_token'] ?? '');
-    {
-        $new_slot_id = (int)$_POST['slot_id'];
-        
-        if ($new_slot_id > 0 && $new_slot_id != $appt['slot_id']) {
-            try {
-                $conn->beginTransaction();
+    $new_slot_id = (int)$_POST['slot_id'];
 
-                // Lock new slot
-                $stmt_slot = $conn->prepare("SELECT slot_date, slot_time, is_booked FROM doctor_slots WHERE id = :sid AND doctor_id = :did FOR UPDATE");
-                $stmt_slot->execute([':sid' => $new_slot_id, ':did' => $appt['doctor_id']]);
-                $new_slot = $stmt_slot->fetch();
+    if ($new_slot_id > 0 && $new_slot_id != $appt['slot_id']) {
+        try {
+            $conn->beginTransaction();
 
-                if (!$new_slot || $new_slot['is_booked']) {
-                    throw new Exception("Сонгосон шинэ цаг өөр хүнд захиалагдсан байна.");
-                }
+            // Re-fetch appointment with row lock to prevent TOCTOU race
+            $lock_stmt = $conn->prepare("
+                SELECT a.*, d.id as doctor_id
+                FROM appointments a
+                JOIN doctors d ON a.doctor_id = d.id
+                WHERE a.id = :id AND a.patient_id = :pid
+                FOR UPDATE
+            ");
+            $lock_stmt->execute([':id' => $appointment_id, ':pid' => $patient_id]);
+            $locked_appt = $lock_stmt->fetch();
 
-                // Release old slot
-                if ($appt['slot_id']) {
-                    $release_old = $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :id");
-                    $release_old->execute([':id' => $appt['slot_id']]);
-                }
-
-                // Book new slot
-                $book_new = $conn->prepare("UPDATE doctor_slots SET is_booked = 1 WHERE id = :id");
-                $book_new->execute([':id' => $new_slot_id]);
-
-                // Update appointment
-                $update_appt = $conn->prepare("
-                    UPDATE appointments 
-                    SET slot_id = :sid, appointment_date = :date, appointment_time = :time, status = 'pending' 
-                    WHERE id = :id
-                ");
-                $update_appt->execute([
-                    ':sid' => $new_slot_id,
-                    ':date' => $new_slot['slot_date'],
-                    ':time' => $new_slot['slot_time'],
-                    ':id' => $appointment_id
-                ]);
-
-                $conn->commit();
-                
-                $_SESSION['success_msg'] = "Цаг захиалгын мэдээлэл амжилттай солигдлоо. Эмч рүү зөвшөөрөл илгээгдлээ.";
-                header("Location: appointment_detail.php?id=" . $appointment_id);
-                exit();
-
-            } catch (Exception $e) {
-                $conn->rollBack();
-                $error = $e->getMessage();
+            if (!$locked_appt || !in_array($locked_appt['status'], ['pending', 'approved'])) {
+                throw new Exception("Энэ цагийг солих боломжгүй байна.");
             }
-        } else {
-            $error = "Та шинэ цаг сонгоогүй эсвэл хуучин цагаа дахин сонгосон байна.";
+
+            if (strtotime($locked_appt['appointment_date'] . ' ' . $locked_appt['appointment_time']) <= time()) {
+                throw new Exception("Цаг захиалгын хугацаа өнгөрсөн байна.");
+            }
+
+            // Lock new slot
+            $stmt_slot = $conn->prepare("SELECT slot_date, slot_time, is_booked FROM doctor_slots WHERE id = :sid AND doctor_id = :did FOR UPDATE");
+            $stmt_slot->execute([':sid' => $new_slot_id, ':did' => $locked_appt['doctor_id']]);
+            $new_slot = $stmt_slot->fetch();
+
+            if (!$new_slot || $new_slot['is_booked']) {
+                throw new Exception("Сонгосон шинэ цаг өөр хүнд захиалагдсан байна.");
+            }
+
+            if (!is_future_datetime($new_slot['slot_date'], $new_slot['slot_time'])) {
+                throw new Exception("Сонгосон шинэ цаг өнгөрсөн байна.");
+            }
+
+            // Release old slot
+            if ($locked_appt['slot_id']) {
+                $release_old = $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :id");
+                $release_old->execute([':id' => $locked_appt['slot_id']]);
+            }
+
+            // Atomically book new slot
+            $book_new = $conn->prepare("UPDATE doctor_slots SET is_booked = 1 WHERE id = :id AND is_booked = 0");
+            $book_new->execute([':id' => $new_slot_id]);
+            if ($book_new->rowCount() !== 1) {
+                throw new Exception("Энэ цаг өөр хүнд захиалагдсан байна. Дахин сонгоно уу.");
+            }
+
+            // Update appointment
+            $update_appt = $conn->prepare("
+                UPDATE appointments
+                SET slot_id = :sid, appointment_date = :date, appointment_time = :time, status = 'pending'
+                WHERE id = :id
+            ");
+            $update_appt->execute([
+                ':sid' => $new_slot_id,
+                ':date' => $new_slot['slot_date'],
+                ':time' => $new_slot['slot_time'],
+                ':id' => $appointment_id
+            ]);
+
+            $new_date = date('Y-m-d', strtotime($new_slot['slot_date']));
+            $new_time = date('H:i', strtotime($new_slot['slot_time']));
+            create_notification($conn, $patient_id, "Цаг солигдлоо", "Таны цаг захиалга $new_date $new_time болж солигдлоо. Эмчийн зөвшөөрлийг хүлээнэ үү.");
+
+            $conn->commit();
+
+            $_SESSION['success_msg'] = "Цаг захиалгын мэдээлэл амжилттай солигдлоо. Эмч рүү зөвшөөрөл илгээгдлээ.";
+            header("Location: appointment_detail.php?id=" . $appointment_id);
+            exit();
+
+        } catch (Exception $e) {
+            $conn->rollBack();
+            $error = $e->getMessage();
         }
+    } else {
+        $error = "Та шинэ цаг сонгоогүй эсвэл хуучин цагаа дахин сонгосон байна.";
     }
 }
 

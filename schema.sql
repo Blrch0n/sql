@@ -9,7 +9,9 @@ CREATE TABLE IF NOT EXISTS users (
     role ENUM('admin', 'doctor', 'patient') NOT NULL,
     is_active TINYINT(1) DEFAULT 1,
     deleted_at TIMESTAMP NULL DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    phone VARCHAR(30) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS departments (
@@ -82,8 +84,32 @@ CREATE INDEX IF NOT EXISTS idx_appointments_patient ON appointments(patient_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_lookup ON appointments(doctor_id, appointment_date, appointment_time);
 CREATE INDEX IF NOT EXISTS idx_login_attempts_email_ip ON login_attempts(email, ip_address, attempted_at);
 
+CREATE TABLE IF NOT EXISTS notifications (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NOT NULL,
+    title      VARCHAR(150) NOT NULL,
+    message    TEXT NOT NULL,
+    is_read    TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_notifications_user_read (user_id, is_read, created_at)
+);
+
+CREATE TABLE IF NOT EXISTS doctor_reviews (
+    id             INT AUTO_INCREMENT PRIMARY KEY,
+    appointment_id INT NOT NULL UNIQUE,
+    patient_id     INT NOT NULL,
+    doctor_id      INT NOT NULL,
+    rating         TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment        TEXT NULL,
+    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (appointment_id) REFERENCES appointments(id),
+    FOREIGN KEY (patient_id)     REFERENCES users(id),
+    FOREIGN KEY (doctor_id)      REFERENCES doctors(id),
+    INDEX idx_reviews_doctor (doctor_id, rating)
+);
+
 -- User setup
 CREATE USER IF NOT EXISTS 'hospital_app'@'localhost' IDENTIFIED BY 'StrongPassword123!';
 GRANT SELECT, INSERT, UPDATE, DELETE ON hospital_db.* TO 'hospital_app'@'localhost';
 FLUSH PRIVILEGES;
-ALTER TABLE users ADD COLUMN phone VARCHAR(30) NULL, ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP; CREATE TABLE IF NOT EXISTS notifications (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, title VARCHAR(150) NOT NULL, message TEXT NOT NULL, is_read TINYINT(1) DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, INDEX idx_notifications_user_read (user_id, is_read, created_at)); CREATE TABLE IF NOT EXISTS doctor_reviews (id INT AUTO_INCREMENT PRIMARY KEY, appointment_id INT NOT NULL UNIQUE, patient_id INT NOT NULL, doctor_id INT NOT NULL, rating TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5), comment TEXT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (appointment_id) REFERENCES appointments(id), FOREIGN KEY (patient_id) REFERENCES users(id), FOREIGN KEY (doctor_id) REFERENCES doctors(id), INDEX idx_reviews_doctor (doctor_id, rating));

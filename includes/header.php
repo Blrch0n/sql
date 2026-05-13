@@ -1,10 +1,11 @@
 <?php
-$is_sub_dir = (basename(dirname($_SERVER['PHP_SELF'])) == 'admin' 
-            || basename(dirname($_SERVER['PHP_SELF'])) == 'doctor' 
+$is_sub_dir = (basename(dirname($_SERVER['PHP_SELF'])) == 'admin'
+            || basename(dirname($_SERVER['PHP_SELF'])) == 'doctor'
             || basename(dirname($_SERVER['PHP_SELF'])) == 'patient');
 $base_path = $is_sub_dir ? '../' : '';
 
 require_once __DIR__ . '/ui.php';
+require_once __DIR__ . '/notifications.php';
 ?>
 <!DOCTYPE html>
 <html lang="mn">
@@ -41,11 +42,21 @@ require_once __DIR__ . '/ui.php';
                 <li><a href="<?php echo $base_path; ?>doctor/dashboard.php" class="<?php echo active_nav('dashboard.php'); ?>">Самбар</a></li>
                 <li><a href="<?php echo $base_path; ?>doctor/my_appointments.php" class="<?php echo active_nav('my_appointments.php'); ?>">Миний цагууд</a></li>
                 <li><a href="<?php echo $base_path; ?>doctor/schedule.php" class="<?php echo active_nav('schedule.php'); ?>">Хуваарь</a></li>
-            <?php elseif ($_SESSION['role'] == 'patient'): ?>
+            <?php elseif ($_SESSION['role'] == 'patient'):
+                $notif_count = isset($conn) ? get_unread_notification_count($conn, $_SESSION['user_id']) : 0;
+            ?>
                 <li><a href="<?php echo $base_path; ?>patient/dashboard.php" class="<?php echo active_nav('dashboard.php'); ?>">Самбар</a></li>
                 <li><a href="<?php echo $base_path; ?>patient/doctors.php" class="<?php echo active_nav('doctors.php'); ?>">Эмч нар</a></li>
                 <li><a href="<?php echo $base_path; ?>patient/book_appointment.php" class="<?php echo active_nav('book_appointment.php'); ?>">Цаг авах</a></li>
                 <li><a href="<?php echo $base_path; ?>patient/my_appointments.php" class="<?php echo active_nav('my_appointments.php'); ?>">Миний цагууд</a></li>
+                <li>
+                    <a href="<?php echo $base_path; ?>patient/notifications.php" class="<?php echo active_nav('notifications.php'); ?>" style="position:relative;">
+                        Мэдэгдэл
+                        <?php if ($notif_count > 0): ?>
+                            <span style="display:inline-block;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;padding:1px 5px;border-radius:10px;margin-left:3px;vertical-align:middle;min-width:16px;text-align:center;"><?php echo $notif_count > 99 ? '99+' : $notif_count; ?></span>
+                        <?php endif; ?>
+                    </a>
+                </li>
                 <li><a href="<?php echo $base_path; ?>patient/profile.php" class="<?php echo active_nav('profile.php'); ?>">Миний мэдээлэл</a></li>
             <?php endif; ?>
             

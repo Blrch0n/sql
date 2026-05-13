@@ -1,6 +1,7 @@
 <?php
 require_once "../config/security.php";
 require_once "../config/db.php";
+require_once "../includes/notifications.php";
 require_auth('patient');
 
 $patient_id = $_SESSION["user_id"];
@@ -23,44 +24,50 @@ if ($preselect_doc_id > 0) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        $error = "Аюулгүй байдлын алдаа байна (CSRF). Дахин оролдоно уу.";
-    } else {
-        $doctor_id = (int)$_POST["doctor_id"];
-        $slot_id = (int)$_POST["slot_id"];
-        $reason = sanitize_string($_POST["reason"]);
+    verify_csrf_token($_POST['csrf_token'] ?? '');
 
-        // Validate doctor and slot
-        if ($doctor_id > 0 && $slot_id > 0) {
-            try {
-                $conn->beginTransaction();
-                
-                // Lock the slot row and check availability
-                $stmt = $conn->prepare("SELECT slot_date, slot_time, is_booked FROM doctor_slots WHERE id = :sid AND doctor_id = :did FOR UPDATE");
-                $stmt->execute([':sid' => $slot_id, ':did' => $doctor_id]);
-                $slot = $stmt->fetch();
+    $doctor_id = (int)$_POST["doctor_id"];
+    $slot_id = (int)$_POST["slot_id"];
+    $reason = sanitize_string($_POST["reason"]);
 
-                if (!$slot || $slot['is_booked']) {
-                    throw new Exception("Энэ цаг өөр хүнд захиалагдсан байна эсвэл олдсонгүй.");
-                }
+    // Validate doctor and slot
+    if ($doctor_id > 0 && $slot_id > 0) {
+        try {
+            $conn->beginTransaction();
 
-                // Check prevent duplicate booking by same patient on same slot (if somehow double posted)
-                $check_dup = $conn->prepare("SELECT id FROM appointments WHERE patient_id = :pid AND slot_id = :sid");
-                $check_dup->execute([':pid' => $patient_id, ':sid' => $slot_id]);
-                if ($check_dup->fetch()) {
-                    throw new Exception("Та энэ цагийг аль хэдийн захиалсан байна.");
-                }
+            // Lock the slot row and check availability
+            $stmt = $conn->prepare("SELECT slot_date, slot_time, is_booked FROM doctor_slots WHERE id = :sid AND doctor_id = :did FOR UPDATE");
+            $stmt->execute([':sid' => $slot_id, ':did' => $doctor_id]);
+            $slot = $stmt->fetch();
 
-                // Prevent booking the same doctor twice on the same day
-                $check_same_day = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE patient_id = :pid AND doctor_id = :did AND appointment_date = :date AND status NOT IN ('cancelled')");
-                $check_same_day->execute([':pid' => $patient_id, ':did' => $doctor_id, ':date' => $slot['slot_date']]);
-                if ($check_same_day->fetchColumn() > 0) {
-                    throw new Exception("Та энэ өдөр энэ эмчтэй аль хэдийн цаг захиалсан байна.");
-                }
+            if (!$slot || $slot['is_booked']) {
+                throw new Exception("Энэ цаг өөр хүнд захиалагдсан байна эсвэл олдсонгүй.");
+            }
 
-                // Mark slot as booked
-                $update_slot = $conn->prepare("UPDATE doctor_slots SET is_booked = 1 WHERE id = :id");
-                $update_slot->execute([':id' => $slot_id]);
+            if (!is_future_datetime($slot['slot_date'], $slot['slot_time'])) {
+                throw new Exception("Энэ цаг өнгөрсөн байна. Ирээдүйн цаг сонгоно уу.");
+            }
+
+            // Prevent duplicate booking on same slot
+            $check_dup = $conn->prepare("SELECT id FROM appointments WHERE patient_id = :pid AND slot_id = :sid");
+            $check_dup->execute([':pid' => $patient_id, ':sid' => $slot_id]);
+            if ($check_dup->fetch()) {
+                throw new Exception("Та энэ цагийг аль хэдийн захиалсан байна.");
+            }
+
+            // Prevent booking the same doctor twice on the same day
+            $check_same_day = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE patient_id = :pid AND doctor_id = :did AND appointment_date = :date AND status NOT IN ('cancelled')");
+            $check_same_day->execute([':pid' => $patient_id, ':did' => $doctor_id, ':date' => $slot['slot_date']]);
+            if ($check_same_day->fetchColumn() > 0) {
+                throw new Exception("Та энэ өдөр энэ эмчтэй аль хэдийн цаг захиалсан байна.");
+            }
+
+            // Atomically mark slot as booked — rowCount guards against concurrent booking
+            $update_slot = $conn->prepare("UPDATE doctor_slots SET is_booked = 1 WHERE id = :id AND is_booked = 0");
+            $update_slot->execute([':id' => $slot_id]);
+            if ($update_slot->rowCount() !== 1) {
+                throw new Exception("Энэ цаг өөр хүнд захиалагдсан байна. Өөр цаг сонгоно уу.");
+            }
 
                 // Create appointment entry
                 $insert_appt = $conn->prepare("
@@ -77,8 +84,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     ':reason' => $reason
                 ]);
 
-                // If Notification framework is available, generate notification here for the doctor
-                // ... 
+                // Notify patient that booking request was sent
+                $doc_date = date('Y-m-d', strtotime($slot['slot_date']));
+                $doc_time = date('H:i', strtotime($slot['slot_time']));
+                create_notification($conn, $patient_id, "Цаг захиалга илгээгдлээ", "Таны $doc_date $doc_time цагийн захиалга эмчид хүлээлгэн өгөгдлөө. Батлагдахыг хүлээнэ үү.");
 
                 $conn->commit();
                 $success = "Цаг амжилттай захиалагдлаа! Эмч рүү зөвшөөрөх хүсэлт илгээгдлээ.";
