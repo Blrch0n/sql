@@ -37,33 +37,32 @@ $check_review->execute([':id' => $appointment_id]);
 $existing_review = $check_review->fetch();
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && !$existing_review) {
-    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        $error = "CSRF алдаа.";
-    } else {
-        $rating = (int)$_POST['rating'];
-        $comment = sanitize_string($_POST['comment'] ?? '');
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+    $rating = (int)$_POST['rating'];
+    $comment = sanitize_string($_POST['comment'] ?? '');
 
-        if ($rating >= 1 && $rating <= 5) {
-            $insert = $conn->prepare("
-                INSERT INTO doctor_reviews (appointment_id, patient_id, doctor_id, rating, comment)
-                VALUES (:app_id, :pid, :did, :rating, :comment)
-            ");
-            
-            if ($insert->execute([
-                ':app_id' => $appointment_id,
-                ':pid' => $patient_id,
-                ':did' => $appt['doctor_id'],
-                ':rating' => $rating,
-                ':comment' => $comment
-            ])) {
-                $_SESSION['success_msg'] = "Таны үнэлгээ амжилттай бүртгэгдлээ. Баярлалаа!";
-                header("Location: appointment_detail.php?id=" . $appointment_id);
-                exit();
-            } else {
-                $error = "Үнэлгээ хадгалахад алдаа гарлаа.";
-            }
+    if (mb_strlen($comment) > 1000) {
+        $error = "Сэтгэгдэл 1000 тэмдэгтээс хэтрэхгүй байх ёстой.";
+    } elseif ($rating < 1 || $rating > 5) {
+        $error = "Үнэлгээ 1-ээс 5 хооронд байх ёстой.";
+    } else {
+        $insert = $conn->prepare("
+            INSERT INTO doctor_reviews (appointment_id, patient_id, doctor_id, rating, comment)
+            VALUES (:app_id, :pid, :did, :rating, :comment)
+        ");
+
+        if ($insert->execute([
+            ':app_id' => $appointment_id,
+            ':pid'    => $patient_id,
+            ':did'    => $appt['doctor_id'],
+            ':rating' => $rating,
+            ':comment'=> $comment
+        ])) {
+            $_SESSION['success_msg'] = "Таны үнэлгээ амжилттай бүртгэгдлээ. Баярлалаа!";
+            header("Location: appointment_detail.php?id=" . $appointment_id);
+            exit();
         } else {
-            $error = "Үнэлгээ 1-ээс 5 хооронд байх ёстой.";
+            $error = "Үнэлгээ хадгалахад алдаа гарлаа.";
         }
     }
 }

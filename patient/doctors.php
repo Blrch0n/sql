@@ -20,13 +20,14 @@ $query = "SELECT d.id, u.full_name, u.email, d.specialization, d.phone, dep.name
 $params = [];
 
 if ($department_id > 0) {
-    $query .= " AND d.department_id = :dep_id";
-    $params[':dep_id'] = $department_id;
+    $query .= " AND d.department_id = :department_id";
+    $params[':department_id'] = $department_id;
 }
 
 if (!empty($search)) {
-    $query .= " AND (u.full_name LIKE :search OR d.specialization LIKE :search)";
-    $params[':search'] = '%' . $search . '%';
+    $query .= " AND (u.full_name LIKE :search_name OR d.specialization LIKE :search_spec)";
+    $params[':search_name'] = '%' . $search . '%';
+    $params[':search_spec'] = '%' . $search . '%';
 }
 
 $query .= " ORDER BY u.full_name ASC";

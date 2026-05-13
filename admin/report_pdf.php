@@ -51,7 +51,7 @@ $doctors_load = $conn->query("
 </head>
 <body>
 
-    <button onclick="window.print()" class="print-btn">🖨️ PDF-р хадгалах / Хэвлэх</button>
+    <button id="print-btn" class="print-btn">🖨️ PDF-р хадгалах / Хэвлэх</button>
 
     <div class="report-header">
         <h1>Эмнэлгийн Нэгдсэн Тайлан</h1>
@@ -104,9 +104,6 @@ $doctors_load = $conn->query("
         <p>© <?php echo date('Y'); ?> Эмнэлгийн Цаг Захиалгын Систем. Энэхүү тайланг системээс автоматаар үүсгэв.</p>
     </div>
 
-    <script>
-        // Optional: auto trigger print dialog on page load
-        // window.onload = function() { window.print(); }
-    </script>
+    <script src="../assets/js/print.js"></script>
 </body>
 </html>

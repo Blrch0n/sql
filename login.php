@@ -38,7 +38,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if ($user && password_verify($password, $user["password"])) {
-                if ($user["is_active"] !== 1) {
+                if ((int)$user["is_active"] !== 1) {
                     $error = "Энэ хэрэглэгч идэвхгүй байна. Админтай холбогдоно уу.";
                 } else {
                     reset_login_attempts($email, $ip, $conn);

@@ -33,9 +33,8 @@ if (!$is_future || !in_array($appt['status'], ['pending', 'approved'])) {
 }
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
-    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
-        $error = "CSRF алдаа.";
-    } else {
+    verify_csrf_token($_POST['csrf_token'] ?? '');
+    {
         $new_slot_id = (int)$_POST['slot_id'];
         
         if ($new_slot_id > 0 && $new_slot_id != $appt['slot_id']) {

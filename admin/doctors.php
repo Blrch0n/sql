@@ -26,29 +26,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['action']) && $_POST['a
             $action_message = "Энэ эмчид {$active} идэвхтэй захиалга байна. Эхлээд тэдгээрийг цуцална уу.";
             $action_type = "alert-error";
         } else {
-            try {
-                $conn->beginTransaction();
-                $conn->prepare("DELETE FROM doctors WHERE id = ?")->execute([$doctor_db_id]);
-                $conn->prepare("DELETE FROM users WHERE id = ? AND role = 'doctor'")->execute([$doc['user_id']]);
-                $conn->commit();
-                $action_message = "Эмч амжилттай устгагдлаа.";
-                $action_type = "alert-success";
-            } catch (PDOException $e) {
-                $conn->rollBack();
-                error_log("Delete doctor error: " . $e->getMessage());
-                $action_message = "Алдаа гарлаа.";
-                $action_type = "alert-error";
-            }
+            $deactivate = $conn->prepare("UPDATE users SET is_active = 0, deleted_at = NOW() WHERE id = ? AND role = 'doctor'");
+            $deactivate->execute([$doc['user_id']]);
+            $action_message = "Эмч идэвхгүй болгогдлоо. Захиалгын түүх хадгалагдсан.";
+            $action_type = "alert-success";
         }
     }
 }
 
 $stmt = $conn->query("
-    SELECT d.id, u.full_name, u.email, dep.name as department, d.specialization, d.phone 
-    FROM doctors d 
-    JOIN users u ON d.user_id = u.id 
+    SELECT d.id, u.full_name, u.email, dep.name as department, d.specialization, d.phone, u.is_active
+    FROM doctors d
+    JOIN users u ON d.user_id = u.id
     JOIN departments dep ON d.department_id = dep.id
-    ORDER BY dep.name, u.full_name
+    ORDER BY u.is_active DESC, dep.name, u.full_name
 ");
 $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -76,21 +67,30 @@ $doctors = $stmt->fetchAll(PDO::FETCH_ASSOC);
             </thead>
             <tbody>
                 <?php foreach($doctors as $doc): ?>
-                <tr>
+                <tr <?php echo !$doc['is_active'] ? 'style="opacity:0.55;"' : ''; ?>>
                     <td><?php echo esc($doc['id']); ?></td>
-                    <td><?php echo esc($doc['full_name']); ?></td>
+                    <td>
+                        <?php echo esc($doc['full_name']); ?>
+                        <?php if (!$doc['is_active']): ?>
+                            <span class="badge badge-danger" style="margin-left:6px;font-size:0.7rem;">Идэвхгүй</span>
+                        <?php endif; ?>
+                    </td>
                     <td><?php echo esc($doc['email']); ?></td>
                     <td><?php echo esc($doc['department']); ?></td>
                     <td><?php echo esc($doc['specialization'] ?: '-'); ?></td>
                     <td><?php echo esc($doc['phone'] ?: '-'); ?></td>
                     <td>
+                        <?php if ($doc['is_active']): ?>
                         <form method="POST" style="display:inline;">
                             <input type="hidden" name="csrf_token" value="<?php echo esc(generate_csrf_token()); ?>">
                             <input type="hidden" name="action" value="delete">
                             <input type="hidden" name="doctor_id" value="<?php echo esc($doc['id']); ?>">
-                            <button type="submit" class="btn btn-danger btn-small" 
-                                onclick="return confirm('<?php echo esc($doc['full_name']); ?> эмчийг устгахдаа итгэлтэй байна уу?');">Устгах</button>
+                            <button type="submit" class="btn btn-danger btn-small"
+                                onclick="return confirm('<?php echo esc($doc['full_name']); ?> эмчийг идэвхгүй болгохдоо итгэлтэй байна уу?');">Идэвхгүй болгох</button>
                         </form>
+                        <?php else: ?>
+                            <span class="text-muted" style="font-size:0.85rem;">Устгагдсан</span>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>

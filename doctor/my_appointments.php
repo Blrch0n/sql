@@ -39,9 +39,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $current = $cur_stmt->fetchColumn();
 
     if ($current && isset($valid_transitions[$current]) && in_array($status, $valid_transitions[$current])) {
+        $conn->beginTransaction();
+
+        if ($status === 'cancelled') {
+            $slot_row = $conn->prepare("SELECT slot_id FROM appointments WHERE id = :id");
+            $slot_row->execute([':id' => $appointment_id]);
+            $slot_id = $slot_row->fetchColumn();
+            if ($slot_id) {
+                $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :sid")
+                     ->execute([':sid' => $slot_id]);
+            }
+        }
+
         $stmt = $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id AND doctor_id = :doctor_id");
         $stmt->execute([":status" => $status, ":id" => $appointment_id, ":doctor_id" => $doctor_id]);
 
+        $conn->commit();
         $_SESSION['flash_message'] = "Цаг $status төлөвт шилжлээ!";
         $_SESSION['flash_type'] = "alert-success";
         header("Location: my_appointments.php");
