@@ -66,11 +66,11 @@ if (isset($_GET['msg']) && !empty($_GET['msg'])) {
 }
 
 $status_filter = $_GET['status'] ?? 'all';
-$valid_statuses = ['all', 'pending', 'approved', 'rejected', 'cancelled', 'completed'];
+$valid_statuses = ['all', 'pending', 'approved', 'cancelled', 'completed'];
 if (!in_array($status_filter, $valid_statuses)) $status_filter = 'all';
 
 $sql = "
-    SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.reason, a.rejection_reason,
+    SELECT a.id, a.appointment_date, a.appointment_time, a.status, a.reason,
            pu.full_name as patient_name, du.full_name as doctor_name, dep.name as department
     FROM appointments a 
     JOIN users pu ON a.patient_id = pu.id 
@@ -94,7 +94,6 @@ $appointments = $stmt->fetchAll();
 $status_labels = [
     'pending'   => ['text' => 'Хүлээгдэж буй', 'class' => 'badge-warning'],
     'approved'  => ['text' => 'Баталгаажсан', 'class' => 'badge-success'],
-    'rejected'  => ['text' => 'Татгалзсан', 'class' => 'badge-rejected'],
     'cancelled' => ['text' => 'Цуцлагдсан', 'class' => 'badge-danger'],
     'completed' => ['text' => 'Дууссан', 'class' => 'badge-completed'],
 ];
@@ -115,7 +114,6 @@ $status_labels = [
             <option value="pending" <?php echo $status_filter === 'pending' ? 'selected' : ''; ?>>Хүлээгдэж буй</option>
             <option value="approved" <?php echo $status_filter === 'approved' ? 'selected' : ''; ?>>Баталгаажсан</option>
             <option value="completed" <?php echo $status_filter === 'completed' ? 'selected' : ''; ?>>Дууссан</option>
-            <option value="rejected" <?php echo $status_filter === 'rejected' ? 'selected' : ''; ?>>Татгалзсан</option>
             <option value="cancelled" <?php echo $status_filter === 'cancelled' ? 'selected' : ''; ?>>Цуцлагдсан</option>
         </select>
     </div>

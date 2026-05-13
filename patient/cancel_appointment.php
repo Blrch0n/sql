@@ -3,73 +3,46 @@ require_once "../config/security.php";
 require_once "../config/db.php";
 require_auth('patient');
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['id'])) {
-    verify_csrf_token($_POST["csrf_token"] ?? '');
+$patient_id = $_SESSION["user_id"];
 
-    $appointment_id = (int)$_POST['id'];
-    $patient_id = $_SESSION["user_id"];
-
-    // Find the appointment AND make sure it belongs to the patient
-    $stmt = $conn->prepare("
-        SELECT id, doctor_id, slot_id, appointment_date, appointment_time, status 
-        FROM appointments 
-        WHERE id = :id AND patient_id = :patient_id
-    ");
-    $stmt->execute([":id" => $appointment_id, ":patient_id" => $patient_id]);
-    $appointment = $stmt->fetch();
-
-    if (!$appointment) {
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $_SESSION['error_msg'] = "Аюулгүй байдлын алдаа байна (CSRF). Дахин оролдоно уу.";
         header("Location: my_appointments.php");
         exit;
     }
 
-    if ($appointment['status'] !== 'pending') {
-        $_SESSION['cancel_error'] = "Зөвхөн хүлээгдэж буй цагийг цуцлах боломжтой.";
-        header("Location: my_appointments.php");
-        exit;
-    }
+    $appointment_id = isset($_POST['appointment_id']) ? (int)$_POST['appointment_id'] : 0;
 
-    $appt_datetime = $appointment['appointment_date'] . ' ' . $appointment['appointment_time'];
-    if (strtotime($appt_datetime) < time()) {
-        $_SESSION['cancel_error'] = "Өнгөрсөн цагийг цуцлах боломжгүй.";
-        header("Location: my_appointments.php");
-        exit;
-    }
+    if ($appointment_id > 0) {
+        try {
+            $conn->beginTransaction();
 
-    try {
-        $conn->beginTransaction();
+            $stmt = $conn->prepare("SELECT slot_id, status FROM appointments WHERE id = :id AND patient_id = :pid");
+            $stmt->execute([':id' => $appointment_id, ':pid' => $patient_id]);
+            $appt = $stmt->fetch();
 
-        $update = $conn->prepare("UPDATE appointments SET status = 'cancelled' WHERE id = :id AND patient_id = :patient_id");
-        $update->execute([":id" => $appointment_id, ":patient_id" => $patient_id]);
+            if ($appt && in_array($appt['status'], ['pending', 'approved'])) {
+                // Free the slot
+                if ($appt['slot_id']) {
+                    $free_slot = $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :sid");
+                    $free_slot->execute([':sid' => $appt['slot_id']]);
+                }
+                
+                // Set appointment to cancelled and remove slot linkage (optional but good practice)
+                $cancel_appt = $conn->prepare("UPDATE appointments SET status = 'cancelled', slot_id = NULL WHERE id = :id");
+                $cancel_appt->execute([':id' => $appointment_id]);
 
-        if ($appointment['slot_id']) {
-            $free_slot = $conn->prepare("UPDATE doctor_slots SET is_booked = 0 WHERE id = :slot_id");
-            $free_slot->execute([":slot_id" => $appointment['slot_id']]);
-        } else {
-            // Fallback for older data
-            $free_slot = $conn->prepare("
-                UPDATE doctor_slots SET is_booked = 0 
-                WHERE doctor_id = :did AND slot_date = :date AND slot_time = :time
-            ");
-            $free_slot->execute([
-                ":did" => $appointment['doctor_id'],
-                ":date" => $appointment['appointment_date'],
-                ":time" => $appointment['appointment_time']
-            ]);
-        }
-
-        $conn->commit();
-    } catch (PDOException $e) {
-        if ($conn->inTransaction()) {
+                $conn->commit();
+                $_SESSION['success_msg'] = "Цаг амжилттай цуцлагдлаа.";
+            } else {
+                throw new Exception("Энэ цагийг цуцлах боломжгүй эсвэл танд хандах эрх алга.");
+            }
+        } catch (Exception $e) {
             $conn->rollBack();
+            $_SESSION['error_msg'] = "Алдаа: " . $e->getMessage();
         }
-        error_log("Cancel appointment error: " . $e->getMessage());
     }
-
-    header("Location: my_appointments.php");
-    exit;
-} else {
-    header("Location: my_appointments.php");
-    exit;
 }
-?>
+header("Location: my_appointments.php");
+exit;

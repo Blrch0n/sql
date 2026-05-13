@@ -61,10 +61,11 @@ function generate_csrf_token() {
 }
 
 function verify_csrf_token($token) {
-    if (!isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
+    if (empty($token) || !isset($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $token)) {
         http_response_code(403);
         die("Хүсэлт хүчингүй боллоо. Хуудсаа дахин ачааллана уу.");
     }
+    return true;
 }
 
 function require_auth($role) {
@@ -97,7 +98,6 @@ function sanitize_id($id) {
 
 function clean_input($data) {
     $data = trim($data);
-    $data = stripslashes($data);
     return htmlspecialchars($data, ENT_QUOTES, 'UTF-8');
 }
 function validate_required($value) { return !empty(trim($value)); }

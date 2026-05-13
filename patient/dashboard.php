@@ -5,122 +5,130 @@ require_auth('patient');
 
 $patient_id = $_SESSION["user_id"];
 
-$total_appts = $conn->prepare("SELECT COUNT(*) as cnt FROM appointments WHERE patient_id = :pid");
-$total_appts->execute([":pid" => $patient_id]);
-$total_count = $total_appts->fetch()['cnt'];
+// Analytics
+$stmt_stats = $conn->prepare("
+    SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed
+    FROM appointments 
+    WHERE patient_id = :pid
+");
+$stmt_stats->execute([":pid" => $patient_id]);
+$stats = $stmt_stats->fetch();
 
-$pending_appts = $conn->prepare("SELECT COUNT(*) as cnt FROM appointments WHERE patient_id = :pid AND status = 'pending'");
-$pending_appts->execute([":pid" => $patient_id]);
-$pending_count = $pending_appts->fetch()['cnt'];
+// Next upcoming appointment
+$stmt_next = $conn->prepare("
+    SELECT a.*, d.specialization, u.full_name as doctor_name, dep.name as department_name
+    FROM appointments a
+    JOIN doctors d ON a.doctor_id = d.id
+    JOIN users u ON d.user_id = u.id
+    JOIN departments dep ON d.department_id = dep.id
+    WHERE a.patient_id = :pid 
+      AND a.appointment_date >= CURRENT_DATE 
+      AND a.status IN ('pending', 'approved')
+    ORDER BY a.appointment_date ASC, a.appointment_time ASC
+    LIMIT 1
+");
+$stmt_next->execute([":pid" => $patient_id]);
+$next_appointment = $stmt_next->fetch();
 
-$approved_appts = $conn->prepare("SELECT COUNT(*) as cnt FROM appointments WHERE patient_id = :pid AND status = 'approved'");
-$approved_appts->execute([":pid" => $patient_id]);
-$approved_count = $approved_appts->fetch()['cnt'];
+require_once "../includes/header.php";
 ?>
 
-<?php require_once "../includes/header.php"; ?>
-
-<h2 style="text-align: left; margin-bottom: 0.5rem;">Сайн байна уу, <?php echo esc($_SESSION["full_name"]); ?>!</h2>
-<p class="text-muted mb-4">Өвчтөний самбар</p>
-
-<?php
-try {
-    $dashboard_categories = $conn->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
-} catch (Exception $e) { 
-    $dashboard_categories = []; 
-}
-
-$selected_category = $_GET['category'] ?? '';
-$safe_category = sanitize_string($selected_category);
-?>
-<div style="margin-bottom: 2rem; padding: 10px; background: #f8fafc; border-radius: 8px;">
-    <strong>Шүүлтүүр (Category filter):</strong> 
-    <a href="dashboard.php" style="text-decoration: none; color: <?php echo empty($safe_category) ? '#000' : '#0284c7'; ?>; font-weight: <?php echo empty($safe_category) ? 'bold' : 'normal'; ?>;">Бүгд (All)</a>
-    
-    <?php foreach ($dashboard_categories as $cat): ?>
-        | <a href="dashboard.php?category=<?php echo urlencode($cat['name']); ?>" style="text-decoration: none; color: <?php echo ($safe_category === $cat['name']) ? '#000' : '#0284c7'; ?>; font-weight: <?php echo ($safe_category === $cat['name']) ? 'bold' : 'normal'; ?>;">
-            <?php echo esc($cat['name']); ?>
-        </a>
-    <?php endforeach; ?>
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; margin-top: 1rem;">
+    <div>
+        <h2 style="margin-bottom: 0.5rem; color: #1e293b;">Сайн байна уу, <?php echo esc($_SESSION["full_name"]); ?> 👋</h2>
+        <p class="text-muted" style="margin: 0;">Өвчтөний удирдлагын самбарт тавтай морилно уу.</p>
+    </div>
 </div>
 
-<?php 
-if (!empty($safe_category)) {
-    $stmt = $conn->prepare("SELECT id, name, description, price, category FROM products WHERE category = :cat AND released = 1");
-    $stmt->execute([':cat' => $safe_category]);
-} else {
-    $stmt = $conn->prepare("SELECT id, name, description, price, category FROM products WHERE released = 1");
-    $stmt->execute();
-}
-$ui_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
-
-<?php if (!empty($safe_category)): ?>
-    <?php
-        $stmt = $conn->prepare("SELECT * FROM categories WHERE name = :cat LIMIT 1");
-        $stmt->execute([':cat' => $safe_category]);
-        $matched_cat = $stmt->fetch();
-    ?>
-    <div class="alert alert-info" style="margin-bottom: 2rem; background-color: #e0f2fe; color: #0369a1; padding: 15px; border-radius: 5px;">
-        ✅ <strong>SQL Injection хамгаалалт ажиллаж байна:</strong> 
-        Та <code>?category=<?php echo esc($selected_category); ?></code> шүүлтүүрийг сонгосон байна.
-        (PDO Prepared Statement ашиглагдсан)
+<div class="row" style="margin-bottom: 2rem;">
+    <?php if ($next_appointment): ?>
+    <div class="col-md-12" style="margin-bottom: 1.5rem;">
+        <div class="card" style="background: linear-gradient(135deg, #0ea5e9, #38bdf8); color: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(14, 165, 233, 0.2);">
+            <h4 style="margin-top: 0; color: rgba(255,255,255,0.9); font-weight: normal; font-size: 1rem; text-transform: uppercase; letter-spacing: 1px;">Таны дараагийн цаг</h4>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 5px;">
+                        📅 <?php echo date('Y-m-d', strtotime($next_appointment['appointment_date'])); ?> 
+                        🕒 <?php echo date('H:i', strtotime($next_appointment['appointment_time'])); ?>
+                    </div>
+                    <div style="font-size: 1.1rem; opacity: 0.9;">
+                        Эмч: Др. <?php echo esc($next_appointment['doctor_name']); ?> (<?php echo esc($next_appointment['department_name']); ?>)
+                    </div>
+                </div>
+                <div>
+                    <?php echo render_status_badge($next_appointment['status']); ?>
+                </div>
+            </div>
+        </div>
     </div>
-<?php endif; ?>
-
-<div style="margin-bottom: 2rem; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-    <h3>Бүтээгдэхүүнүүд (Products in Category)</h3>
-    <?php if (empty($ui_products)): ?>
-        <p>Энэ ангилалд бүтээгдэхүүн байхгүй байна.</p>
     <?php else: ?>
-        <ul style="list-style-type: none; padding: 0;">
-        <?php foreach ($ui_products as $prod): ?>
-            <li style="padding: 10px; border-bottom: 1px solid #eee;">
-                <strong><?php echo esc($prod['name']); ?></strong> 
-                <span style="color: #666; font-size:0.9em;">(<?php echo esc($prod['category']); ?>)</span> - 
-                $<?php echo number_format($prod['price'], 2); ?><br>
-                <em><?php echo esc($prod['description']); ?></em>
-            </li>
-        <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
-</div>
-
-<div style="margin-bottom: 2rem; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-    <h3>Үзүүлэлтүүд (Statistics)</h3>
-    <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
-        <thead>
-            <tr style="border-bottom: 2px solid #ddd; background: #f8fafc;">
-                <th style="padding: 10px;">Дэлгэрэнгүй</th>
-                <th style="padding: 10px;">Тоо хэмжээ</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Нийт захиалга</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $total_count; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Хүлээгдэж буй</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $pending_count; ?></td>
-            </tr>
-            <tr style="border-bottom: 1px solid #eee;">
-                <td style="padding: 10px;">Баталгаажсан</td>
-                <td style="padding: 10px; font-weight: bold;"><?php echo $approved_count; ?></td>
-            </tr>
-        </tbody>
-    </table>
-</div>
-
-<div class="dashboard-grid">
-    <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='book_appointment.php'">
-        <h3>Шинэ цаг авах</h3>
-        <p class="value">+</p>
+    <div class="col-md-12" style="margin-bottom: 1.5rem;">
+        <div class="card" style="background: #f8fafc; padding: 2rem; border-radius: 12px; border: 1px dashed #cbd5e1; text-align: center;">
+            <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 15px;">Танд одоогоор захиалсан цаг алга байна.</p>
+            <a href="book_appointment.php" class="btn btn-primary">Эмчид цаг авах</a>
+        </div>
     </div>
+    <?php endif; ?>
 
-    <div class="stat-card" style="cursor: pointer;" onclick="window.location.href='my_appointments.php'">
-        <h3>Миний цагууд</h3>
-        <p class="value">📋</p>
+    <!-- User stats -->
+    <div class="col-md-3">
+        <div class="stat-card" style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 1rem;">
+            <div style="font-size: 2.5rem; color: #0284c7; font-weight: bold;"><?php echo (int)$stats['total']; ?></div>
+            <div style="color: #64748b; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; margin-top: 5px;">Нийт цаг</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 1rem; border-bottom: 4px solid #f59e0b;">
+            <div style="font-size: 2.5rem; color: #1e293b; font-weight: bold;"><?php echo (int)$stats['pending']; ?></div>
+            <div style="color: #64748b; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; margin-top: 5px;">Хүлээгдэж буй</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 1rem; border-bottom: 4px solid #10b981;">
+            <div style="font-size: 2.5rem; color: #1e293b; font-weight: bold;"><?php echo (int)$stats['approved']; ?></div>
+            <div style="color: #64748b; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; margin-top: 5px;">Баталгаажсан</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card" style="text-align: center; padding: 1.5rem; background: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 1rem; border-bottom: 4px solid #0ea5e9;">
+            <div style="font-size: 2.5rem; color: #1e293b; font-weight: bold;"><?php echo (int)$stats['completed']; ?></div>
+            <div style="color: #64748b; font-weight: 500; text-transform: uppercase; font-size: 0.85rem; margin-top: 5px;">Дууссан</div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <div class="card" style="padding: 1.5rem; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); background: white;">
+            <h3 style="margin-top: 0; margin-bottom: 1.5rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px;">Шуурхай үйлдэл</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                <a href="book_appointment.php" style="display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f8fafc; border-radius: 8px; text-decoration: none; color: #0284c7; transition: all 0.2s; border: 1px solid #e2e8f0;" onmouseover="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">
+                    <span style="font-size: 2rem; margin-bottom: 10px;">📅</span>
+                    <span style="font-weight: bold;">Цаг авах</span>
+                </a>
+                
+                <a href="doctors.php" style="display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f8fafc; border-radius: 8px; text-decoration: none; color: #0284c7; transition: all 0.2s; border: 1px solid #e2e8f0;" onmouseover="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">
+                    <span style="font-size: 2rem; margin-bottom: 10px;">👨‍⚕️</span>
+                    <span style="font-weight: bold;">Эмч хайх</span>
+                </a>
+                
+                <a href="my_appointments.php" style="display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f8fafc; border-radius: 8px; text-decoration: none; color: #0284c7; transition: all 0.2s; border: 1px solid #e2e8f0;" onmouseover="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">
+                    <span style="font-size: 2rem; margin-bottom: 10px;">📋</span>
+                    <span style="font-weight: bold;">Миний цагууд</span>
+                </a>
+
+                <a href="profile.php" style="display: flex; flex-direction: column; align-items: center; padding: 20px; background: #f8fafc; border-radius: 8px; text-decoration: none; color: #0284c7; transition: all 0.2s; border: 1px solid #e2e8f0;" onmouseover="this.style.background='#e0f2fe'; this.style.borderColor='#bae6fd'" onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0'">
+                    <span style="font-size: 2rem; margin-bottom: 10px;">👤</span>
+                    <span style="font-weight: bold;">Миний мэдээлэл</span>
+                </a>
+            </div>
+            
+        </div>
     </div>
 </div>
 

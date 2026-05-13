@@ -335,3 +335,75 @@ textarea.form-control {
         margin-top: 0.5rem;
     }
 }
+
+/* ── Badges ─────────────────────────────────────────── */
+.badge {
+    display: inline-block;
+    padding: 0.3em 0.75em;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 20px;
+    line-height: 1;
+    white-space: nowrap;
+}
+.badge-warning  { background: var(--warning-soft);  color: var(--warning); }
+.badge-success  { background: var(--success-soft);  color: var(--success); }
+.badge-danger   { background: var(--danger-soft);   color: var(--danger); }
+.badge-info     { background: var(--primary-soft);  color: var(--primary); }
+.badge-secondary{ background: #f1f5f9;              color: var(--text-muted); }
+.badge-completed{ background: #f0fdf4;              color: #166534; }
+
+/* ── Alert variants ─────────────────────────────────── */
+.alert {
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    font-size: 15px;
+}
+.alert-danger  { background: var(--danger-soft);  color: var(--danger);  border-left: 4px solid var(--danger); }
+.alert-warning { background: var(--warning-soft); color: var(--warning); border-left: 4px solid var(--warning); }
+.alert-info    { background: var(--primary-soft); color: var(--primary); border-left: 4px solid var(--primary); }
+.alert-success { background: var(--success-soft); color: var(--success); border-left: 4px solid var(--success); }
+
+/* ── Button variants ────────────────────────────────── */
+.btn-secondary {
+    background: #f1f5f9;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+}
+.btn-secondary:hover { background: #e2e8f0; }
+.btn-info {
+    background: var(--primary-soft);
+    color: var(--primary);
+    border: 1px solid var(--primary-soft);
+}
+.btn-info:hover { background: var(--primary); color: #fff; }
+.btn-warning {
+    background: var(--warning-soft);
+    color: var(--warning);
+    border: 1px solid var(--warning-soft);
+}
+.btn-warning:hover { background: var(--warning); color: #fff; }
+.btn-small {
+    padding: 0.3rem 0.75rem;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+/* ── Filter bar ─────────────────────────────────────── */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0.75rem 0;
+    margin-bottom: 1rem;
+}
+
+/* ── Action buttons row ─────────────────────────────── */
+.action-buttons {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}

@@ -1,9 +1,9 @@
 USE hospital_db;
 -- Seed users
 INSERT IGNORE INTO users (full_name, email, password, role) VALUES 
-('System Admin', 'admin@medicare.mn', '$2y$10$wE6CPE6B316hTYsB6P4J7.F8E1l8.JdE9y6w.Y7yE0z7y.Y.Y.Y.Y', 'admin'),
-('Doctor Who', 'doctor@medicare.mn', '$2y$10$wE6CPE6B316hTYsB6P4J7.F8E1l8.JdE9y6w.Y7yE0z7y.Y.Y.Y.Y', 'doctor'),
-('Patient Zero', 'patient@medicare.mn', '$2y$10$wE6CPE6B316hTYsB6P4J7.F8E1l8.JdE9y6w.Y7yE0z7y.Y.Y.Y.Y', 'patient');
+('System Admin', 'admin@medicare.mn', '$2y$12$mL0tbVUpT6oK4jn0xT0CFe4oKWJCMJASoNk9nDieZiCeKCXIMuxsK', 'admin'),
+('Doctor Who', 'doctor@medicare.mn', '$2y$12$mL0tbVUpT6oK4jn0xT0CFe4oKWJCMJASoNk9nDieZiCeKCXIMuxsK', 'doctor'),
+('Patient Zero', 'patient@medicare.mn', '$2y$12$mL0tbVUpT6oK4jn0xT0CFe4oKWJCMJASoNk9nDieZiCeKCXIMuxsK', 'patient');
 
 -- Seed departments
 INSERT IGNORE INTO departments (name) VALUES ('Cardiology'), ('Neurology'), ('Pediatrics');

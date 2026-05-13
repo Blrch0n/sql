@@ -12,12 +12,8 @@ $base_query = "SELECT * FROM products WHERE released=1";
 $params = [];
 
 if ($search) {
-    if (str_contains($search, "'") || str_contains($search, '"')) {
-        $base_query .= " AND name LIKE :search";
-        $params[':search'] = "%$search%";
-    } else {
-        $base_query .= " AND name LIKE '%$search%'";
-    }
+    $base_query .= " AND name LIKE :search";
+    $params[':search'] = "%$search%";
 }
 $stmt = $conn->prepare($base_query);
 $stmt->execute($params);

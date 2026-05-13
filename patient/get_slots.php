@@ -3,45 +3,48 @@ require_once "../config/security.php";
 require_once "../config/db.php";
 require_auth('patient');
 
+$doctor_id = isset($_GET['doctor_id']) ? (int)$_GET['doctor_id'] : 0;
+$date = isset($_GET['date']) ? sanitize_string($_GET['date']) : '';
+
 header('Content-Type: application/json');
 
-if (!isset($_GET['doctor_id']) || !isset($_GET['date'])) {
-    echo json_encode([]);
+if ($doctor_id <= 0 || empty($date)) {
+    echo json_encode(['error' => 'Эмч эсвэл огноо буруу байна.']);
     exit;
 }
 
-$doctor_id = (int)$_GET['doctor_id'];
-$date = $_GET['date'];
-
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || $doctor_id <= 0) {
-    echo json_encode([]);
-    exit;
-}
-
+// Ensure the date is valid and >= today
 if ($date < date('Y-m-d')) {
-    echo json_encode([]);
+    echo json_encode(['error' => 'Өнгөрсөн огноо сонгох боломжгүй.']);
     exit;
 }
 
-$stmt = $conn->prepare("
-    SELECT slot_time 
-    FROM doctor_slots 
-    WHERE doctor_id = ? AND slot_date = ? AND is_booked = 0
-    ORDER BY slot_time ASC
-");
-$stmt->execute([$doctor_id, $date]);
-$slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-$options = [];
-$now = date('H:i:s');
-$is_today = ($date === date('Y-m-d'));
-
-foreach ($slots as $slot) {
-    if ($is_today && $slot['slot_time'] <= $now) {
-        continue;
+try {
+    $stmt = $conn->prepare("
+        SELECT id, slot_time as time, is_booked 
+        FROM doctor_slots 
+        WHERE doctor_id = :did AND slot_date = :date AND is_booked = 0
+        ORDER BY slot_time ASC
+    ");
+    
+    $stmt->execute([
+        ':did' => $doctor_id,
+        ':date' => $date
+    ]);
+    
+    $slots = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Filter out past times if date is today
+    if ($date == date('Y-m-d')) {
+        $currentTime = date('H:i:s');
+        $slots = array_filter($slots, function($slot) use ($currentTime) {
+            return $slot['time'] > $currentTime;
+        });
+        // Reindex array
+        $slots = array_values($slots);
     }
-    $options[] = substr($slot['slot_time'], 0, 5);
-}
 
-echo json_encode($options);
-?>
+    echo json_encode(['slots' => $slots]);
+} catch (Exception $e) {
+    echo json_encode(['error' => 'Мэдээлэл авахад алдаа гарлаа.']);
+}

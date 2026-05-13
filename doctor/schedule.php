@@ -80,11 +80,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $conn->beginTransaction();
                     
                     $cancel_appt = $conn->prepare("
-                        UPDATE appointments SET status = 'cancelled' 
-                        WHERE doctor_id = ? AND appointment_date = ? AND appointment_time = ? 
+                        UPDATE appointments SET status = 'cancelled'
+                        WHERE doctor_id = ? AND slot_id = ?
                         AND status IN ('pending', 'approved')
                     ");
-                    $cancel_appt->execute([$doctor_id, $slot['slot_date'], $slot['slot_time']]);
+                    $cancel_appt->execute([$doctor_id, $slot_id]);
                     
                     $del = $conn->prepare("DELETE FROM doctor_slots WHERE id = ? AND doctor_id = ?");
                     $del->execute([$slot_id, $doctor_id]);

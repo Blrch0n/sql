@@ -3,7 +3,10 @@ require_once "../config/security.php";
 require_once "../config/db.php";
 require_auth('doctor');
 
-$doctor_id = get_doctor_id($_SESSION["user_id"], $conn);
+$stmt = $conn->prepare("SELECT id FROM doctors WHERE user_id = :uid LIMIT 1");
+$stmt->execute([":uid" => $_SESSION["user_id"]]);
+$doctor_row = $stmt->fetch();
+$doctor_id = $doctor_row ? $doctor_row['id'] : 0;
 if (!$doctor_id) {
     die("Эмчийн мэдээлэл олдсонгүй.");
 }
@@ -24,10 +27,21 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $appointment_id = (int)$_POST["appointment_id"];
     $status = $_POST["status"];
     
-    if (in_array($status, ['approved', 'completed', 'cancelled'])) {
+    $valid_transitions = [
+        'pending'   => ['approved', 'cancelled'],
+        'approved'  => ['completed', 'cancelled'],
+        'completed' => [],
+        'cancelled' => [],
+    ];
+
+    $cur_stmt = $conn->prepare("SELECT status FROM appointments WHERE id = :id AND doctor_id = :did");
+    $cur_stmt->execute([':id' => $appointment_id, ':did' => $doctor_id]);
+    $current = $cur_stmt->fetchColumn();
+
+    if ($current && isset($valid_transitions[$current]) && in_array($status, $valid_transitions[$current])) {
         $stmt = $conn->prepare("UPDATE appointments SET status = :status WHERE id = :id AND doctor_id = :doctor_id");
         $stmt->execute([":status" => $status, ":id" => $appointment_id, ":doctor_id" => $doctor_id]);
-        
+
         $_SESSION['flash_message'] = "Цаг $status төлөвт шилжлээ!";
         $_SESSION['flash_type'] = "alert-success";
         header("Location: my_appointments.php");
@@ -82,11 +96,18 @@ $appointments = $appointments->fetchAll();
                             <form method="POST" style="display:inline;">
                                 <input type="hidden" name="csrf_token" value="<?php echo esc(generate_csrf_token()); ?>">
                                 <input type="hidden" name="appointment_id" value="<?php echo $app['id']; ?>">
-                                <select name="status" class="form-control" style="width: auto; display: inline-block; padding: 0.25rem; height: auto;" onchange="this.form.submit()">
-                                    <option value="pending" <?php if($app['status'] == 'pending') echo 'selected'; ?>>Хүлээгдэж буй</option>
-                                    <option value="approved" <?php if($app['status'] == 'approved') echo 'selected'; ?>>Батлах</option>
-                                    <option value="completed" <?php if($app['status'] == 'completed') echo 'selected'; ?>>Дууссан</option>
-                                    <option value="cancelled" <?php if($app['status'] == 'cancelled') echo 'selected'; ?>>Цуцлах</option>
+                                <select name="status" class="form-control" style="width: auto; display: inline-block; padding: 0.25rem; height: auto;" onchange="if(confirm('Төлвийг өөрчлөхдөө итгэлтэй байна уу?')) this.form.submit(); else this.value='<?php echo esc($app['status']); ?>';">
+                                    <?php if($app['status'] == 'pending'): ?>
+                                    <option value="pending" selected>Хүлээгдэж буй</option>
+                                    <option value="approved">Батлах</option>
+                                    <option value="cancelled">Цуцлах</option>
+                                    <?php elseif($app['status'] == 'approved'): ?>
+                                    <option value="approved" selected>Баталгаажсан</option>
+                                    <option value="completed">Дууссан</option>
+                                    <option value="cancelled">Цуцлах</option>
+                                    <?php else: ?>
+                                    <option value="<?php echo esc($app['status']); ?>" selected><?php echo esc($app['status']); ?></option>
+                                    <?php endif; ?>
                                 </select>
                             </form>
                         </td>

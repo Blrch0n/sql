@@ -11,138 +11,113 @@ $approved_appointments = $conn->query("SELECT COUNT(*) as cnt FROM appointments 
 $completed_appointments = $conn->query("SELECT COUNT(*) as cnt FROM appointments WHERE status = 'completed'")->fetch()['cnt'];
 $today_appointments = $conn->query("SELECT COUNT(*) as cnt FROM appointments WHERE appointment_date = CURDATE() AND status != 'cancelled'")->fetch()['cnt'];
 $total_departments = $conn->query("SELECT COUNT(*) as cnt FROM departments")->fetch()['cnt'];
-try {
-    $total_categories = $conn->query("SELECT COUNT(*) as cnt FROM categories")->fetch()['cnt'];
-} catch (Exception $e) { $total_categories = 0; }
+
+require_once "../includes/header.php";
 ?>
 
-<?php require_once "../includes/header.php"; ?>
+<div class="row" style="margin-top: 2rem;">
+    <div class="col-12 text-center mb-4">
+        <h2 style="color: #0f172a; margin-bottom: 5px;">Админ удирдлагын самбар</h2>
+        <p style="color: #64748b;">Эмнэлгийн системийн ерөнхий статистик болон тайлан</p>
+    </div>
 
-<div class="dashboard-header">
-    <h1>Сайн байна уу, <?php echo esc($_SESSION["full_name"]); ?>!</h1>
-    <p>Эмнэлгийн системийн ерөнхий хяналтын самбар</p>
-</div>
-
-<div class="dashboard-grid">
-    <div class="stat-card">
-        <h3>Нийт өвчтөн</h3>
-        <p class="value"><?php echo $total_users; ?></p>
+    <!-- Quick Stats -->
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card" style="border-left: 4px solid #3b82f6;">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #3b82f6;">👥</div>
+                <h4 style="margin: 10px 0; color: #1e293b;"><?php echo $total_users; ?></h4>
+                <div style="color: #64748b; font-size: 0.9rem;">Нийт өвчтөн</div>
+            </div>
+        </div>
     </div>
-    <div class="stat-card">
-        <h3>Нийт эмч</h3>
-        <p class="value"><?php echo $total_doctors; ?></p>
-    </div>
-    <div class="stat-card">
-        <h3>Нийт захиалга</h3>
-        <p class="value"><?php echo $total_appointments; ?></p>
-    </div>
-    <div class="stat-card">
-        <h3>Хүлээгдэж буй</h3>
-        <p class="value"><?php echo $pending_appointments; ?></p>
-    </div>
-    <div class="stat-card">
-        <h3>Баталгаажсан</h3>
-        <p class="value"><?php echo $approved_appointments; ?></p>
-    </div>
-    <div class="stat-card">
-        <h3>Дууссан</h3>
-        <p class="value"><?php echo $completed_appointments; ?></p>
-    </div>
-    <div class="stat-card">
-        <h3>Өнөөдрийн цагууд</h3>
-        <p class="value"><?php echo $today_appointments; ?></p>
-    </div>
-    <div class="stat-card">
-        <h3>Нийт тасаг</h3>
-        <p class="value"><?php echo $total_departments; ?></p>
-    </div>
-</div>
-
-<section class="quick-actions">
-    <h2>Шуурхай үйлдлүүд</h2>
-    <div class="action-grid">
-        <a class="action-card" href="add_department.php">
-            <span class="icon">🏥</span>
-            <span class="title">Тасаг нэмэх</span>
-        </a>
-        <a class="action-card" href="add_doctor.php">
-            <span class="icon">➕</span>
-            <span class="title">Эмч нэмэх</span>
-        </a>
-        <a class="action-card" href="add_category.php">
-            <span class="icon">📂</span>
-            <span class="title">Ангилал нэмэх</span>
-        </a>
-        <a class="action-card" href="manage_users.php">
-            <span class="icon">👥</span>
-            <span class="title">Хэрэглэгчид</span>
-        </a>
-    </div>
-</section>
-
-<?php
-try {
-    $dashboard_categories = $conn->query("SELECT * FROM categories ORDER BY name ASC")->fetchAll();
-} catch (Exception $e) { 
-    $dashboard_categories = []; 
-}
-
-$selected_category = $_GET['category'] ?? '';
-$safe_category = sanitize_string($selected_category);
-?>
-<div style="margin-bottom: 2rem; padding: 10px; background: #f8fafc; border-radius: 8px;">
-    <strong>Шүүлтүүр (Category filter):</strong> 
-    <a href="dashboard.php" style="text-decoration: none; color: <?php echo empty($safe_category) ? '#000' : '#0284c7'; ?>; font-weight: <?php echo empty($safe_category) ? 'bold' : 'normal'; ?>;">Бүгд (All)</a>
     
-    <?php foreach ($dashboard_categories as $cat): ?>
-        | <a href="dashboard.php?category=<?php echo urlencode($cat['name']); ?>" style="text-decoration: none; color: <?php echo ($safe_category === $cat['name']) ? '#000' : '#0284c7'; ?>; font-weight: <?php echo ($safe_category === $cat['name']) ? 'bold' : 'normal'; ?>;">
-            <?php echo esc($cat['name']); ?>
-        </a>
-    <?php endforeach; ?>
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card" style="border-left: 4px solid #10b981;">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #10b981;">👨‍⚕️</div>
+                <h4 style="margin: 10px 0; color: #1e293b;"><?php echo $total_doctors; ?></h4>
+                <div style="color: #64748b; font-size: 0.9rem;">Нийт эмч</div>
+            </div>
+        </div>
+    </div>
     
-    <a href="add_category.php" class="btn btn-primary" style="margin-left: 15px; padding: 5px 10px; font-size: 0.8em;">+ Шинэ ангилал нэмэх</a>
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card" style="border-left: 4px solid #8b5cf6;">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #8b5cf6;">📅</div>
+                <h4 style="margin: 10px 0; color: #1e293b;"><?php echo $today_appointments; ?></h4>
+                <div style="color: #64748b; font-size: 0.9rem;">Өнөөдрийн цагууд</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-4">
+        <div class="card stat-card" style="border-left: 4px solid #f59e0b;">
+            <div class="card-body text-center">
+                <div style="font-size: 2.5rem; color: #f59e0b;">⏳</div>
+                <h4 style="margin: 10px 0; color: #1e293b;"><?php echo $pending_appointments; ?></h4>
+                <div style="color: #64748b; font-size: 0.9rem;">Хүлээгдэж буй</div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<?php 
-if (!empty($safe_category)) {
-    $stmt = $conn->prepare("SELECT id, name, description, price, category FROM products WHERE category = :cat AND released = 1");
-    $stmt->execute([':cat' => $safe_category]);
-} else {
-    $stmt = $conn->prepare("SELECT id, name, description, price, category FROM products WHERE released = 1");
-    $stmt->execute();
-}
-$ui_products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
-
-<?php if (!empty($safe_category)): ?>
-    <?php
-        $stmt = $conn->prepare("SELECT * FROM categories WHERE name = :cat LIMIT 1");
-        $stmt->execute([':cat' => $safe_category]);
-        $matched_cat = $stmt->fetch();
-    ?>
-    <div class="alert alert-info" style="margin-bottom: 2rem; background-color: #e0f2fe; color: #0369a1; padding: 15px; border-radius: 5px;">
-        <strong>SQL Injection хамгаалалт ажиллаж байна:</strong> 
-        Та <code>?category=<?php echo esc($selected_category); ?></code> шүүлтүүрийг сонгосон байна.
-        Энэхүү утгыг <b>PDO Prepared Statement</b> (<code>:cat</code>) ашиглан бааз руу дамжуулсан тул хакердах боломжгүй (SQLi prevented).
+<div class="row">
+    <!-- Actions -->
+    <div class="col-md-6 mb-4">
+        <div class="card" style="height: 100%;">
+            <div class="card-header bg-white" style="border-bottom: 1px solid #e2e8f0; padding: 15px 20px;">
+                <h5 style="margin: 0; color: #0f172a;">Шуурхай үйлдлүүд</h5>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <a href="appointments.php" class="btn btn-outline-primary" style="text-align: left; padding: 15px; border-radius: 8px;">
+                        <span style="font-size: 1.5rem; display: block; margin-bottom: 5px;">📋</span>
+                        Захиалга удирдах
+                    </a>
+                    <a href="doctors.php" class="btn btn-outline-success" style="text-align: left; padding: 15px; border-radius: 8px;">
+                        <span style="font-size: 1.5rem; display: block; margin-bottom: 5px;">🩺</span>
+                        Эмч нар удирдах
+                    </a>
+                    <a href="manage_users.php" class="btn btn-outline-info" style="text-align: left; padding: 15px; border-radius: 8px;">
+                        <span style="font-size: 1.5rem; display: block; margin-bottom: 5px;">👥</span>
+                        Хэрэглэгчид (Өвчтөн)
+                    </a>
+                    <a href="add_department.php" class="btn btn-outline-secondary" style="text-align: left; padding: 15px; border-radius: 8px;">
+                        <span style="font-size: 1.5rem; display: block; margin-bottom: 5px;">🏥</span>
+                        Тасаг удирдах
+                    </a>
+                </div>
+            </div>
+        </div>
     </div>
-<?php endif; ?>
 
-<div style="margin-bottom: 2rem; background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 8px;">
-    <h3>Бүтээгдэхүүнүүд (Products in Category)</h3>
-    <?php if (empty($ui_products)): ?>
-        <p>Энэ ангилалд бүтээгдэхүүн байхгүй байна.</p>
-    <?php else: ?>
-        <ul style="list-style-type: none; padding: 0;">
-        <?php foreach ($ui_products as $prod): ?>
-            <li style="padding: 10px; border-bottom: 1px solid #eee;">
-                <strong><?php echo esc($prod['name']); ?></strong> 
-                <span style="color: #666; font-size:0.9em;">(<?php echo esc($prod['category']); ?>)</span> - 
-                $<?php echo number_format($prod['price'], 2); ?><br>
-                <em><?php echo esc($prod['description']); ?></em>
-            </li>
-        <?php endforeach; ?>
-        </ul>
-    <?php endif; ?>
+    <!-- Reports -->
+    <div class="col-md-6 mb-4">
+        <div class="card" style="height: 100%;">
+            <div class="card-header bg-white" style="border-bottom: 1px solid #e2e8f0; padding: 15px 20px;">
+                <h5 style="margin: 0; color: #0f172a;">Тайлан ба Дата</h5>
+            </div>
+            <div class="card-body">
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 15px;">
+                    <h1 style="margin:0; color:#334155; font-size:3rem;">📊</h1>
+                    <h4 style="margin:10px 0; color:#0f172a;">PDF Тайлан үүсгэх</h4>
+                    <p style="color:#64748b; font-size:0.9rem;">Эмнэлгийн нэгдсэн үзүүлэлтүүд, эмч нарын ачаалал, санхүүгийн (захиалгын) тайланг PDF хувилбараар хэвлэн авах.</p>
+                    <a href="report_pdf.php" target="_blank" class="btn btn-danger mt-2" style="font-weight: bold; width: 100%; border-radius: 8px; padding: 12px;">Тайлан хэвлэх (PDF)</a>
+                </div>
+                
+                <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 15px;">
+                    <strong style="color: #166534; display: block; margin-bottom: 5px;">Статистик:</strong>
+                    <ul style="color: #15803d; margin: 0; padding-left: 20px; font-size: 0.95rem;">
+                        <li>Дууссан захиалга: <b><?php echo $completed_appointments; ?></b></li>
+                        <li>Нийт батлагдсан: <b><?php echo $approved_appointments; ?></b></li>
+                        <li>Нийт тасаг: <b><?php echo $total_departments; ?></b></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php require_once "../includes/footer.php"; ?>

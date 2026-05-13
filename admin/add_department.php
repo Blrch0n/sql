@@ -15,7 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         if (empty($department_name)) {
             $error = "Тасгийн нэрийг оруулна уу!";
-        } elseif (strlen($department_name) > 100) {
+        } elseif (mb_strlen($department_name) > 100) {
             $error = "Тасгийн нэр 100 тэмдэгтээс хэтрэхгүй байх ёстой.";
         } else {
             try {
